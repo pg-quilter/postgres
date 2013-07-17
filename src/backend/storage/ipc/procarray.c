@@ -840,6 +840,9 @@ TransactionIdIsInProgress(TransactionId xid)
 	TransactionId topxid;
 	int			i,
 				j;
+	static	int	pgprocno = -1;	/* cached last pgprocno */
+	static TransactionId pxid;	/* cached last parent xid */
+	static TransactionId cxid;	/* cached last child xid */
 
 	/*
 	 * Don't bother checking a transaction older than RecentXmin; it could not
@@ -873,6 +876,60 @@ TransactionIdIsInProgress(TransactionId xid)
 		xc_by_my_xact_inc();
 		return true;
 	}
+
+	/*
+	 * Check to see if we have cached the pgprocno for the xid we seek.
+	 * We will have cached either pxid only or both pxid and cxid.
+	 * So we check to see whether pxid or cxid matches the xid we seek,
+	 * but then re-check just the parent pxid. If the PGXACT doesn't
+	 * match then the transaction must be complete because an xid is
+	 * only associated with one PGPROC/PGXACT during its lifetime
+	 * except when we are using prepared transactions.
+	 * Transaction wraparound is not a concern because we are checking
+	 * the status of an xid we see in data and that might be running;
+	 * anything very old will already be deleted or frozen. So stale
+	 * cached values for pxid and cxid don't affect the correctness
+	 * of the result.
+	 */
+	if (max_prepared_xacts == 0 && pgprocno >= 0 &&
+		(TransactionIdEquals(xid, pxid) || TransactionIdEquals(xid, cxid)))
+	{
+		volatile PGXACT *pgxact;
+
+		pgxact = &allPgXact[pgprocno];
+
+		pxid = pgxact->xid;
+
+		/*
+		 * XXX Can we test without the lock first? If the values don't
+		 * match without the lock they never will match...
+		 */
+
+		/*
+		 * xid matches, so wait for the lock and re-check.
+		 */
+		LWLockAcquire(ProcArrayLock, LW_SHARED);
+
+		pxid = pgxact->xid;
+
+		if (TransactionIdIsValid(pxid) && TransactionIdEquals(pxid, xid))
+		{
+			LWLockRelease(ProcArrayLock);
+			return true;
+		}
+
+		LWLockRelease(ProcArrayLock);
+
+		pxid = cxid = InvalidTransactionId;
+		return false;
+	}
+
+	/*
+	 * Our cache didn't match, so zero the cxid so that when we reset pxid
+	 * we don't become confused that the cxid and pxid still relate.
+	 * cxid will be reset to something useful later, if approproate.
+	 */
+	cxid = InvalidTransactionId;
 
 	/*
 	 * If first time through, get workspace to remember main XIDs in. We
@@ -910,10 +967,12 @@ TransactionIdIsInProgress(TransactionId xid)
 	/* No shortcuts, gotta grovel through the array */
 	for (i = 0; i < arrayP->numProcs; i++)
 	{
-		int			pgprocno = arrayP->pgprocnos[i];
-		volatile PGPROC *proc = &allProcs[pgprocno];
-		volatile PGXACT *pgxact = &allPgXact[pgprocno];
-		TransactionId pxid;
+		volatile PGPROC *proc;
+		volatile PGXACT *pgxact;
+
+		pgprocno = arrayP->pgprocnos[i];
+		proc = &allProcs[pgprocno];
+		pgxact = &allPgXact[pgprocno];
 
 		/* Ignore my own proc --- dealt with it above */
 		if (proc == MyProc)
@@ -948,7 +1007,7 @@ TransactionIdIsInProgress(TransactionId xid)
 		for (j = pgxact->nxids - 1; j >= 0; j--)
 		{
 			/* Fetch xid just once - see GetNewTransactionId */
-			TransactionId cxid = proc->subxids.xids[j];
+			cxid = proc->subxids.xids[j];
 
 			if (TransactionIdEquals(cxid, xid))
 			{
@@ -975,6 +1034,14 @@ TransactionIdIsInProgress(TransactionId xid)
 	 */
 	if (RecoveryInProgress())
 	{
+		/*
+		 * Hot Standby doesn't use pgprocno, so we can clear the cache.
+		 *
+		 * XXX we could try to remember the offset into the KnownAssignedXids
+		 * array, which is a possibility for another day.
+		 */
+		pxid = cxid = InvalidTransactionId;
+
 		/* none of the PGXACT entries should have XIDs in hot standby mode */
 		Assert(nxids == 0);
 
@@ -997,6 +1064,12 @@ TransactionIdIsInProgress(TransactionId xid)
 	}
 
 	LWLockRelease(ProcArrayLock);
+
+	/*
+	 * After this point we don't remember pgprocno, so the cache is
+	 * no use to us anymore.
+	 */
+	pxid = cxid = InvalidTransactionId;
 
 	/*
 	 * If none of the relevant caches overflowed, we know the Xid is not
@@ -1508,6 +1581,9 @@ GetSnapshotData(Snapshot snapshot)
 	snapshot->suboverflowed = suboverflowed;
 
 	snapshot->curcid = GetCurrentCommandId(false);
+
+	/* Initialise the single xid cache for this snapshot */
+	snapshot->xid_in_snapshot = InvalidTransactionId;
 
 	/*
 	 * This is a new snapshot, so set both refcounts are zero, and mark it as

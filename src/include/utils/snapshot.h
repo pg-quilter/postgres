@@ -56,6 +56,12 @@ typedef struct SnapshotData
 	bool		copied;			/* false if it's a static snapshot */
 
 	/*
+	 * Single transaction cache. Keep track of common xid so we can respond
+	 * quickly when we keep seeing an xid while we use this snapshot.
+	 */
+	TransactionId xid_in_snapshot;
+
+	/*
 	 * note: all ids in subxip[] are >= xmin, but we don't bother filtering
 	 * out any that are >= xmax
 	 */
