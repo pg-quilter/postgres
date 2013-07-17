@@ -6,15 +6,15 @@ CREATE EXTENSION pgstattuple;
 --
 create table test (a int primary key, b int[]);
 select * from pgstattuple('test'::text);
- table_len | tuple_count | tuple_len | tuple_percent | dead_tuple_count | dead_tuple_len | dead_tuple_percent | free_space | free_percent 
------------+-------------+-----------+---------------+------------------+----------------+--------------------+------------+--------------
-         0 |           0 |         0 |             0 |                0 |              0 |                  0 |          0 |            0
+ table_len | tuple_count | tuple_len | tuple_percent | dead_tuple_count | dead_tuple_len | dead_tuple_percent | free_space | free_percent | all_visible_percent 
+-----------+-------------+-----------+---------------+------------------+----------------+--------------------+------------+--------------+---------------------
+         0 |           0 |         0 |             0 |                0 |              0 |                  0 |          0 |            0 |                   0
 (1 row)
 
 select * from pgstattuple('test'::regclass);
- table_len | tuple_count | tuple_len | tuple_percent | dead_tuple_count | dead_tuple_len | dead_tuple_percent | free_space | free_percent 
------------+-------------+-----------+---------------+------------------+----------------+--------------------+------------+--------------
-         0 |           0 |         0 |             0 |                0 |              0 |                  0 |          0 |            0
+ table_len | tuple_count | tuple_len | tuple_percent | dead_tuple_count | dead_tuple_len | dead_tuple_percent | free_space | free_percent | all_visible_percent 
+-----------+-------------+-----------+---------------+------------------+----------------+--------------------+------------+--------------+---------------------
+         0 |           0 |         0 |             0 |                0 |              0 |                  0 |          0 |            0 |                   0
 (1 row)
 
 select * from pgstatindex('test_pkey');
