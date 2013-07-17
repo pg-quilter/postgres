@@ -148,12 +148,21 @@ typedef struct xl_heap_update
 	TransactionId new_xmax;		/* xmax of the new tuple */
 	ItemPointerData newtid;		/* new inserted tuple id */
 	uint8		old_infobits_set;		/* infomask bits to set on old tuple */
-	bool		all_visible_cleared;	/* PD_ALL_VISIBLE was cleared */
-	bool		new_all_visible_cleared;		/* same for the page of newtid */
+	uint8		flags;			/* flag bits, see below */
 	/* NEW TUPLE xl_heap_header AND TUPLE DATA FOLLOWS AT END OF STRUCT */
 } xl_heap_update;
 
-#define SizeOfHeapUpdate	(offsetof(xl_heap_update, new_all_visible_cleared) + sizeof(bool))
+#define XL_HEAP_UPDATE_ALL_VISIBLE_CLEARED		0x01	/* Indicates as old
+ 														 * page's all visible
+ 														 * bit is cleared */
+#define XL_HEAP_UPDATE_NEW_ALL_VISIBLE_CLEARED	0x02	/* Indicates as new
+ 														 * page's all visible
+ 														 * bit is cleared */
+#define XL_HEAP_UPDATE_DELTA_ENCODED			0x04	/* Indicates as the
+ 														 * update operation is
+ 														 * delta encoded */
+
+#define SizeOfHeapUpdate	(offsetof(xl_heap_update, flags) + sizeof(uint8))
 
 /*
  * This is what we need to know about vacuum page cleanup/redirect

@@ -125,6 +125,7 @@ extern char *default_tablespace;
 extern char *temp_tablespaces;
 extern bool ignore_checksum_failure;
 extern bool synchronize_seqscans;
+extern int	wal_update_compression_ratio;
 extern int	ssl_renegotiation_limit;
 extern char *SSLCipherSuites;
 
@@ -2434,6 +2435,17 @@ static struct config_int ConfigureNamesInt[] =
 		},
 		&pgstat_track_activity_query_size,
 		1024, 100, 102400,
+		NULL, NULL, NULL
+	},
+
+	{
+		/* Not for general use */
+		{"wal_update_compression_ratio", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Sets the compression ratio of delta record for wal update"),
+			NULL,
+		},
+		&wal_update_compression_ratio,
+		25, 0, 100,
 		NULL, NULL, NULL
 	},
 

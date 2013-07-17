@@ -689,6 +689,11 @@ extern HeapTuple heap_modify_tuple(HeapTuple tuple,
 extern void heap_deform_tuple(HeapTuple tuple, TupleDesc tupleDesc,
 				  Datum *values, bool *isnull);
 
+extern bool heap_delta_encode(TupleDesc tupleDesc, HeapTuple oldtup,
+				  HeapTuple newtup, char *encdata, uint32 *enclen);
+extern void heap_delta_decode (char *encdata, uint32 enclen, HeapTuple oldtup,
+				HeapTuple newtup);
+
 /* these three are deprecated versions of the three above: */
 extern HeapTuple heap_formtuple(TupleDesc tupleDescriptor,
 			   Datum *values, char *nulls);
