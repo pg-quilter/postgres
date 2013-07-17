@@ -35,6 +35,7 @@
 #include "storage/lmgr.h"
 #include "utils/builtins.h"
 #include "utils/tqual.h"
+#include "access/visibilitymap.h"
 
 
 PG_MODULE_MAGIC;
@@ -59,6 +60,7 @@ typedef struct pgstattuple_type
 	uint64		dead_tuple_count;
 	uint64		dead_tuple_len;
 	uint64		free_space;		/* free/reusable space in bytes */
+	double		all_visible_ratio;
 } pgstattuple_type;
 
 typedef void (*pgstat_page) (pgstattuple_type *, Relation, BlockNumber,
@@ -88,7 +90,7 @@ static void pgstat_index_page(pgstattuple_type *stat, Page page,
 static Datum
 build_pgstattuple_type(pgstattuple_type *stat, FunctionCallInfo fcinfo)
 {
-#define NCOLUMNS	9
+#define NCOLUMNS	10
 #define NCHARS		32
 
 	HeapTuple	tuple;
@@ -97,7 +99,7 @@ build_pgstattuple_type(pgstattuple_type *stat, FunctionCallInfo fcinfo)
 	int			i;
 	double		tuple_percent;
 	double		dead_tuple_percent;
-	double		free_percent;	/* free/reusable space in % */
+	double		free_percent;		/* free/reusable space in % */
 	TupleDesc	tupdesc;
 	AttInMetadata *attinmeta;
 
@@ -141,6 +143,7 @@ build_pgstattuple_type(pgstattuple_type *stat, FunctionCallInfo fcinfo)
 	snprintf(values[i++], NCHARS, "%.2f", dead_tuple_percent);
 	snprintf(values[i++], NCHARS, INT64_FORMAT, stat->free_space);
 	snprintf(values[i++], NCHARS, "%.2f", free_percent);
+	snprintf(values[i++], NCHARS, "%.2f", stat->all_visible_ratio * 100.0);
 
 	/* build a tuple */
 	tuple = BuildTupleFromCStrings(attinmeta, values);
@@ -275,7 +278,9 @@ pgstat_heap(Relation rel, FunctionCallInfo fcinfo)
 	BlockNumber nblocks;
 	BlockNumber block = 0;		/* next block to count free space in */
 	BlockNumber tupblock;
+	BlockNumber all_visible_pages = 0;
 	Buffer		buffer;
+	Buffer		vmbuffer = InvalidBuffer;
 	pgstattuple_type stat = {0};
 	BufferAccessStrategy bstrategy;
 
@@ -340,6 +345,26 @@ pgstat_heap(Relation rel, FunctionCallInfo fcinfo)
 		UnlockReleaseBuffer(buffer);
 		block++;
 	}
+
+	/*
+	 * The only reason to check for visibilitymap here is the consistency of
+	 * all_visible_pages against other stats.
+	 */
+	for (block = 0 ; block < nblocks ; block++)
+	{
+		if (visibilitymap_test(rel, block, &vmbuffer))
+			all_visible_pages++;
+	}
+	if (vmbuffer != InvalidBuffer)
+	{
+		ReleaseBuffer(vmbuffer);
+		vmbuffer = InvalidBuffer;
+	}
+
+	if (nblocks > 0)
+		stat.all_visible_ratio = (double)all_visible_pages / nblocks;
+	else
+		stat.all_visible_ratio = 0.0;
 
 	relation_close(rel, AccessShareLock);
 
