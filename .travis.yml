@@ -1,0 +1,10 @@
+language: c
+compiler:
+  - gcc
+  - clang
+notifications:
+  email: false
+
+before_script: echo "COPT=-Werror" > Makefile.custom
+
+script: test ! -f .pg-quilter-patch-application-failed.sentinel && ./configure --with-libxml --with-openssl --enable-cassert && make check
