@@ -48,6 +48,11 @@ RETURNS BIGINT
 AS 'MODULE_PATHNAME', 'pg_relpages'
 LANGUAGE C STRICT;
 
+CREATE FUNCTION pg_relpages(IN relname regclass)
+RETURNS BIGINT
+AS 'MODULE_PATHNAME', 'pg_relpages_regclass'
+LANGUAGE C STRICT;
+
 /* New stuff in 1.1 begins here */
 
 CREATE FUNCTION pgstatginindex(IN relname regclass,
