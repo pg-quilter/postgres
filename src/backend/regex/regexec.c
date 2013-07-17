@@ -488,11 +488,8 @@ cfindloop(struct vars * v,
 					return er;
 				}
 				if ((shorter) ? end == estop : end == begin)
-				{
-					/* no point in trying again */
-					*coldp = cold;
-					return REG_NOMATCH;
-				}
+					break;		/* Restart from begin + 1, so just break out */
+
 				/* go around and try again */
 				if (shorter)
 					estart = end + 1;

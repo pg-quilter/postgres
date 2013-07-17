@@ -173,3 +173,55 @@ select 'a' ~ '((((((a+|)+|)+|)+|)+|)+|)';
  t
 (1 row)
 
+-- Test backrefs with longer match
+select REGEXP_SPLIT_TO_TABLE('ProgrammersInLinux','(\w).*\1','i');
+ regexp_split_to_table 
+-----------------------
+ P
+ s
+ nux
+(3 rows)
+
+-- Test backrefs with shorter match
+select REGEXP_SPLIT_TO_TABLE('ProgrammersInLinux','(\w).*?\1','i');
+ regexp_split_to_table 
+-----------------------
+ P
+ a
+ ers
+ nux
+(4 rows)
+
+-- Test backrefs with shorter match in REGEXP_* functions
+SELECT REGEXP_SPLIT_TO_TABLE('Programmer','(\w).*?\1');
+ regexp_split_to_table 
+-----------------------
+ P
+ a
+ er
+(3 rows)
+
+SELECT REGEXP_SPLIT_TO_ARRAY('Programmer','(\w).*?\1');
+ regexp_split_to_array 
+-----------------------
+ {P,a,er}
+(1 row)
+
+SELECT REGEXP_REPLACE('Programmer', '(\w).*?\1', 'XX');
+ regexp_replace 
+----------------
+ PXXammer
+(1 row)
+
+SELECT REGEXP_REPLACE('Programmer', '(\w).*?\1', 'XX', 'g');
+ regexp_replace 
+----------------
+ PXXaXXer
+(1 row)
+
+SELECT REGEXP_MATCHES('Programmer', '(\w).*?\1');
+ regexp_matches 
+----------------
+ {r}
+(1 row)
+

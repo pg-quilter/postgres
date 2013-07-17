@@ -41,3 +41,14 @@ select 'a' ~ '($|^)*';
 -- Test for infinite loop in fixempties() (Tcl bugs 3604074, 3606683)
 select 'a' ~ '((((((a)*)*)*)*)*)*';
 select 'a' ~ '((((((a+|)+|)+|)+|)+|)+|)';
+
+-- Test backrefs with longer match
+select REGEXP_SPLIT_TO_TABLE('ProgrammersInLinux','(\w).*\1','i');
+-- Test backrefs with shorter match
+select REGEXP_SPLIT_TO_TABLE('ProgrammersInLinux','(\w).*?\1','i');
+-- Test backrefs with shorter match in REGEXP_* functions
+SELECT REGEXP_SPLIT_TO_TABLE('Programmer','(\w).*?\1');
+SELECT REGEXP_SPLIT_TO_ARRAY('Programmer','(\w).*?\1');
+SELECT REGEXP_REPLACE('Programmer', '(\w).*?\1', 'XX');
+SELECT REGEXP_REPLACE('Programmer', '(\w).*?\1', 'XX', 'g');
+SELECT REGEXP_MATCHES('Programmer', '(\w).*?\1');
