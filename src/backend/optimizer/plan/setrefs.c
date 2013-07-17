@@ -134,6 +134,7 @@ static List *set_returning_clause_references(PlannerInfo *root,
 static bool fix_opfuncids_walker(Node *node, void *context);
 static bool extract_query_dependencies_walker(Node *node,
 								  PlannerInfo *context);
+static void fix_varno_varattno(List *rlist, int aft);
 
 
 /*****************************************************************************
@@ -1691,6 +1692,15 @@ fix_join_expr_mutator(Node *node, fix_join_expr_context *context)
 	if (IsA(node, Var))
 	{
 		Var		   *var = (Var *) node;
+		if (var->varno<=list_length(context->root->parse->rtable) && 
+			var->varno>1 && 
+			context->root->parse->commandType == CMD_UPDATE)
+		{
+			RangeTblEntry *rte_a,*rte_b;
+			rte_a = (RangeTblEntry *)list_nth(context->root->parse->rtable,var->varno-1);
+			rte_b = (RangeTblEntry *)list_nth(context->root->parse->rtable,var->varno-2);
+			if (rte_a->rtekind == RTE_BEFORE && rte_b->rtekind == RTE_BEFORE) var->varno-=1;
+		}
 
 		/* First look for the var in the input tlists */
 		newvar = search_indexed_tlist_for_var(var,
@@ -1892,6 +1902,43 @@ fix_upper_expr_mutator(Node *node, fix_upper_expr_context *context)
  *
  * Note: resultRelation is not yet adjusted by rtoffset.
  */
+
+void fix_varno_varattno(List *rlist, int aft)
+{
+	ListCell   *temp;
+	Var *var = NULL;
+	foreach(temp, rlist){
+		TargetEntry *tle = (TargetEntry *)lfirst(temp);
+
+		var = NULL;
+		if(IsA(tle, TargetEntry))
+		{
+			var = (Var*)tle->expr;
+		}
+		else if(IsA(tle, Var)) 
+			var=(Var*)tle;
+		if(var)
+		{
+			if( IsA(var, Var) )
+			{
+				if(var->varnoold == aft)
+				{
+					var->varno = OUTER_VAR;
+					var->varattno = var->varoattno;
+				}
+			}
+			else if( IsA(var, OpExpr ))
+			{
+				fix_varno_varattno(((OpExpr*)var)->args, aft);
+			}
+			else if( IsA(var, FuncExpr ))
+			{
+				fix_varno_varattno(((FuncExpr*)var)->args, aft);
+			}
+		}
+	}
+}
+
 static List *
 set_returning_clause_references(PlannerInfo *root,
 								List *rlist,
@@ -1900,7 +1947,24 @@ set_returning_clause_references(PlannerInfo *root,
 								int rtoffset)
 {
 	indexed_tlist *itlist;
+	int after_index=0;
+	Query      *parse = root->parse;
 
+	ListCell   *rt;
+	RangeTblEntry *bef;
+
+	int index_rel=1;
+
+	foreach(rt,parse->rtable)
+	{
+		bef = (RangeTblEntry *)lfirst(rt);
+		if(strcmp(bef->eref->aliasname,"after") == 0 && bef->rtekind == RTE_BEFORE )
+		{
+			after_index = index_rel;
+			break;
+		}
+		index_rel++;
+	}
 	/*
 	 * We can perform the desired Var fixup by abusing the fix_join_expr
 	 * machinery that formerly handled inner indexscan fixup.  We search the
@@ -1924,6 +1988,7 @@ set_returning_clause_references(PlannerInfo *root,
 						  resultRelation,
 						  rtoffset);
 
+	fix_varno_varattno(rlist, after_index);
 	pfree(itlist);
 
 	return rlist;

@@ -599,7 +599,7 @@ ExecUpdate(ItemPointer tupleid,
 		resultRelInfo->ri_TrigDesc->trig_update_before_row)
 	{
 		slot = ExecBRUpdateTriggers(estate, epqstate, resultRelInfo,
-									tupleid, slot);
+									tupleid, slot, &planSlot);
 
 		if (slot == NULL)		/* "do nothing" */
 			return NULL;
@@ -733,6 +733,7 @@ lreplace:;
 										   hufd.xmax);
 					if (!TupIsNull(epqslot))
 					{
+						planSlot = epqslot;
 						*tupleid = hufd.ctid;
 						slot = ExecFilterJunk(resultRelInfo->ri_junkFilter, epqslot);
 						tuple = ExecMaterializeSlot(slot);
