@@ -285,9 +285,13 @@ RelationTruncate(Relation rel, BlockNumber nblocks)
 		 * or visibility map. If we crashed during that window, we'd be left
 		 * with a truncated heap, but the FSM or visibility map would still
 		 * contain entries for the non-existent heap pages.
+		 *
+		 * Also ensure that the WAL is received by the synchronous standby.
+		 * Otherwise, we may have a situation where the heap is truncated, but
+		 * the action never replayed on the standby
 		 */
 		if (fsm || vm)
-			XLogFlush(lsn);
+			XLogFlush(lsn, true, true);
 	}
 
 	/* Do the real work */
@@ -519,7 +523,7 @@ smgr_redo(XLogRecPtr lsn, XLogRecord *record)
 		 * after truncation, but that would leave a small window where the
 		 * WAL-first rule could be violated.
 		 */
-		XLogFlush(lsn);
+		XLogFlush(lsn, true, false);
 
 		smgrtruncate(reln, MAIN_FORKNUM, xlrec->blkno);
 

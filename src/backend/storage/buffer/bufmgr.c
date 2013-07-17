@@ -41,6 +41,7 @@
 #include "pg_trace.h"
 #include "pgstat.h"
 #include "postmaster/bgwriter.h"
+#include "replication/syncrep.h"
 #include "storage/buf_internals.h"
 #include "storage/bufmgr.h"
 #include "storage/ipc.h"
@@ -1975,7 +1976,7 @@ FlushBuffer(volatile BufferDesc *buf, SMgrRelation reln)
 	 * skip the flush if the buffer isn't permanent.
 	 */
 	if (buf->flags & BM_PERMANENT)
-		XLogFlush(recptr);
+		XLogFlush(recptr, true, false);
 
 	/*
 	 * Now it's safe to write buffer to disk. Note that no one else should

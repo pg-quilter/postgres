@@ -262,7 +262,7 @@ typedef struct CheckpointStatsData
 extern CheckpointStatsData CheckpointStats;
 
 extern XLogRecPtr XLogInsert(RmgrId rmid, uint8 info, XLogRecData *rdata);
-extern void XLogFlush(XLogRecPtr RecPtr);
+extern void XLogFlush(XLogRecPtr RecPtr, bool ForDataFush, bool Wait);
 extern bool XLogBackgroundFlush(void);
 extern bool XLogNeedsFlush(XLogRecPtr RecPtr);
 extern int	XLogFileInit(XLogSegNo segno, bool *use_existent, bool use_lock);

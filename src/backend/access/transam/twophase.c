@@ -1049,7 +1049,14 @@ EndPrepare(GlobalTransaction gxact)
 
 	gxact->prepare_lsn = XLogInsert(RM_XACT_ID, XLOG_XACT_PREPARE,
 									records.head);
-	XLogFlush(gxact->prepare_lsn);
+
+	/*
+	 * Wait for synchronous replication, if required.
+	 *
+	 * Note that at this stage we have marked the prepare, but still show as
+	 * running in the procarray (twice!) and continue to hold locks.
+	 */
+	XLogFlush(gxact->prepare_lsn, false, true);
 
 	/* If we crash now, we have prepared: WAL replay will fix things */
 
@@ -1089,14 +1096,6 @@ EndPrepare(GlobalTransaction gxact)
 	MyPgXact->delayChkpt = false;
 
 	END_CRIT_SECTION();
-
-	/*
-	 * Wait for synchronous replication, if required.
-	 *
-	 * Note that at this stage we have marked the prepare, but still show as
-	 * running in the procarray (twice!) and continue to hold locks.
-	 */
-	SyncRepWaitForLSN(gxact->prepare_lsn);
 
 	records.tail = records.head = NULL;
 }
@@ -2046,8 +2045,14 @@ RecordTransactionCommitPrepared(TransactionId xid,
 	 * a contradiction)
 	 */
 
-	/* Flush XLOG to disk */
-	XLogFlush(recptr);
+	/*
+	 * Flush XLOG to disk,
+	 * Wait for synchronous replication, if required.
+	 *
+	 * Note that at this stage we have marked clog, but still show as running
+	 * in the procarray and continue to hold locks.
+	 */
+	XLogFlush(recptr, false, true);
 
 	/* Mark the transaction committed in pg_clog */
 	TransactionIdCommitTree(xid, nchildren, children);
@@ -2056,14 +2061,6 @@ RecordTransactionCommitPrepared(TransactionId xid,
 	MyPgXact->delayChkpt = false;
 
 	END_CRIT_SECTION();
-
-	/*
-	 * Wait for synchronous replication, if required.
-	 *
-	 * Note that at this stage we have marked clog, but still show as running
-	 * in the procarray and continue to hold locks.
-	 */
-	SyncRepWaitForLSN(recptr);
 }
 
 /*
@@ -2126,8 +2123,14 @@ RecordTransactionAbortPrepared(TransactionId xid,
 
 	recptr = XLogInsert(RM_XACT_ID, XLOG_XACT_ABORT_PREPARED, rdata);
 
-	/* Always flush, since we're about to remove the 2PC state file */
-	XLogFlush(recptr);
+	/*
+	 * Always flush, since we're about to remove the 2PC state file.
+	 * Wait for synchronous replication, if required.
+	 *
+	 * Note that at this stage we have marked clog, but still show as running
+	 * in the procarray and continue to hold locks.
+	 */
+	XLogFlush(recptr, false, true);
 
 	/*
 	 * Mark the transaction aborted in clog.  This is not absolutely necessary
@@ -2136,12 +2139,4 @@ RecordTransactionAbortPrepared(TransactionId xid,
 	TransactionIdAbortTree(xid, nchildren, children);
 
 	END_CRIT_SECTION();
-
-	/*
-	 * Wait for synchronous replication, if required.
-	 *
-	 * Note that at this stage we have marked clog, but still show as running
-	 * in the procarray and continue to hold locks.
-	 */
-	SyncRepWaitForLSN(recptr);
 }

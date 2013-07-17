@@ -1224,7 +1224,7 @@ begin:;
 	if (isLogSwitch)
 	{
 		TRACE_POSTGRESQL_XLOG_SWITCH();
-		XLogFlush(EndPos);
+		XLogFlush(EndPos, true, true);
 		/*
 		 * Even though we reserved the rest of the segment for us, which is
 		 * reflected in EndPos, we return a pointer to just the end of the
@@ -2996,7 +2996,7 @@ UpdateMinRecoveryPoint(XLogRecPtr lsn, bool force)
  * already held, and we try to avoid acquiring it if possible.
  */
 void
-XLogFlush(XLogRecPtr record)
+XLogFlush(XLogRecPtr record, bool ForDataFlush, bool Wait)
 {
 	XLogRecPtr	WriteRqstPtr;
 	XLogwrtRqst WriteRqst;
@@ -3133,6 +3133,8 @@ XLogFlush(XLogRecPtr record)
 
 	/* wake up walsenders now that we've released heavily contended locks */
 	WalSndWakeupProcessRequests();
+
+	SyncRepWaitForLSN(WriteRqstPtr, ForDataFlush, Wait);
 
 	/*
 	 * If we still haven't flushed to the request point then we have a
@@ -8230,7 +8232,12 @@ CreateCheckPoint(int flags)
 						XLOG_CHECKPOINT_ONLINE,
 						&rdata);
 
-	XLogFlush(recptr);
+	/*
+	 * At this point, ensure that the synchronous standby has received the
+	 * checkpoint WAL. Otherwise failure after the control file update will
+	 * cause the master to start from a location not known to the standby
+	 */
+	XLogFlush(recptr, true, !shutdown);
 
 	/*
 	 * We mustn't write any new WAL after a shutdown checkpoint, or it will be
@@ -8387,7 +8394,7 @@ CreateEndOfRecoveryRecord(void)
 
 	recptr = XLogInsert(RM_XLOG_ID, XLOG_END_OF_RECOVERY, &rdata);
 
-	XLogFlush(recptr);
+	XLogFlush(recptr, true, true);
 
 	/*
 	 * Update the control file so that crash recovery can follow the timeline

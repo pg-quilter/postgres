@@ -696,9 +696,11 @@ SlruPhysicalWritePage(SlruCtl ctl, int pageno, int slotno, SlruFlush fdata)
 			 * XLogFlush were to fail, we must PANIC.  This isn't much of a
 			 * restriction because XLogFlush is just about all critical
 			 * section anyway, but let's make sure.
+			 * Also wait for the synchronous standby to receive WAL upto
+			 * max_lsn.
 			 */
 			START_CRIT_SECTION();
-			XLogFlush(max_lsn);
+			XLogFlush(max_lsn, true, true);
 			END_CRIT_SECTION();
 		}
 	}

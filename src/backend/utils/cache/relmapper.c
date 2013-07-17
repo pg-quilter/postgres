@@ -721,7 +721,12 @@ write_relmap_file(bool shared, RelMapFile *newmap,
 		lsn = XLogInsert(RM_RELMAP_ID, XLOG_RELMAP_UPDATE, rdata);
 
 		/* As always, WAL must hit the disk before the data update does */
-		XLogFlush(lsn);
+		XLogFlush(lsn, true, true);
+
+		/*
+		 * XXX Should we also wait for the failback safe standby to receive the
+		 * WAL ?
+		 */
 	}
 
 	errno = 0;

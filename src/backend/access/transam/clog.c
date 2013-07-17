@@ -722,7 +722,7 @@ WriteTruncateXlogRec(int pageno)
 	rdata.buffer = InvalidBuffer;
 	rdata.next = NULL;
 	recptr = XLogInsert(RM_CLOG_ID, CLOG_TRUNCATE, &rdata);
-	XLogFlush(recptr);
+	XLogFlush(recptr, true, true);
 }
 
 /*
