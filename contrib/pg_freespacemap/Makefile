@@ -4,7 +4,7 @@ MODULE_big = pg_freespacemap
 OBJS = pg_freespacemap.o
 
 EXTENSION = pg_freespacemap
-DATA = pg_freespacemap--1.0.sql pg_freespacemap--unpackaged--1.0.sql
+DATA = pg_freespacemap--1.1.sql pg_freespacemap--1.0--1.1.sql pg_freespacemap--unpackaged--1.0.sql
 
 ifdef USE_PGXS
 PG_CONFIG = pg_config
