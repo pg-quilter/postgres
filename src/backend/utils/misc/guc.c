@@ -381,6 +381,18 @@ static const struct config_enum_entry synchronous_commit_options[] = {
 };
 
 /*
+ * Although only "all", "data_flush", and "commit" are documented, we
+ * accept all the likely variants of "off".
+ */
+static const struct config_enum_entry synchronous_transfer_options[] = {
+	{"all", SYNCHRONOUS_TRANSFER_ALL, false},
+	{"data_flush", SYNCHRONOUS_TRANSFER_DATA_FLUSH, false},
+	{"commit", SYNCHRONOUS_TRANSFER_COMMIT, true},
+	{"0", SYNCHRONOUS_TRANSFER_COMMIT, true},
+	{NULL, 0, false}
+};
+
+/*
  * Options for enum values stored in other modules
  */
 extern const struct config_enum_entry wal_level_options[];
@@ -3287,6 +3299,16 @@ static struct config_enum ConfigureNamesEnum[] =
 		&synchronous_commit,
 		SYNCHRONOUS_COMMIT_ON, synchronous_commit_options,
 		NULL, assign_synchronous_commit, NULL
+	},
+
+	{
+		{"synchronous_transfer", PGC_SIGHUP, WAL_SETTINGS,
+			gettext_noop("Sets the data flush synchronization level"),
+			NULL
+		},
+		&synchronous_transfer,
+		SYNCHRONOUS_TRANSFER_COMMIT, synchronous_transfer_options,
+		NULL, assign_synchronous_transfer, NULL
 	},
 
 	{

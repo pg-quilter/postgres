@@ -62,6 +62,7 @@
 #include "access/subtrans.h"
 #include "access/transam.h"
 #include "access/xact.h"
+#include "replication/syncrep.h"
 #include "storage/bufmgr.h"
 #include "storage/procarray.h"
 #include "utils/tqual.h"
@@ -118,6 +119,15 @@ SetHintBits(HeapTupleHeader tuple, Buffer buffer,
 
 		if (XLogNeedsFlush(commitLSN) && BufferIsPermanent(buffer))
 			return;				/* not flushed yet, so don't set hint */
+
+		/*
+		 * If synchronous_transfer is configured to data_flush or all, we should
+		 * also check if the commit WAL record has made to the standby before
+		 * allowing hint bit updates. We should not wait for the standby to receive
+		 * the WAL since its OK to delay hint bit updates
+		 */
+		if (!SyncRepWaitForLSN(commitLSN, true, false))
+			return;
 	}
 
 	tuple->t_infomask |= infomask;

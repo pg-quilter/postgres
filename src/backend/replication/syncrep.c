@@ -65,6 +65,8 @@ char	   *SyncRepStandbyNames;
 static bool announce_next_takeover = true;
 
 static int	SyncRepWaitMode = SYNC_REP_NO_WAIT;
+static int	SyncTransferMode = SYNC_REP_NO_WAIT;
+int		synchronous_transfer = SYNCHRONOUS_TRANSFER_COMMIT;
 
 static void SyncRepQueueInsert(int mode);
 static void SyncRepCancelWait(void);
@@ -85,25 +87,55 @@ static bool SyncRepQueueIsOrderedByLSN(int mode);
  * Wait for synchronous replication, if requested by user.
  *
  * Initially backends start in state SYNC_REP_NOT_WAITING and then
- * change that state to SYNC_REP_WAITING before adding ourselves
- * to the wait queue. During SyncRepWakeQueue() a WALSender changes
- * the state to SYNC_REP_WAIT_COMPLETE once replication is confirmed.
- * This backend then resets its state to SYNC_REP_NOT_WAITING.
+ * change that state to SYNC_REP_WAITING/SYNC_REP_WAITING_FOR_DATA_FLUSH
+ * before adding ourselves to the wait queue. During SyncRepWakeQueue() a
+ * WALSender changes the state to SYNC_REP_WAIT_COMPLETE once replication is
+ * confirmed. This backend then resets its state to SYNC_REP_NOT_WAITING.
+ *
+ * ForDataFlush - if TRUE, we wait for the flushing data page.
+ * Otherwise wait for the sync standby
+ *
+ * Wait - if FALSE, we don't actually wait, but tell the caller whether or not
+ * the standby has already made progressed upto the given XactCommitLSN
+ *
+ * Return TRUE if either the sync standby is not
+ * configured/turned off OR the standby has made enough progress
  */
-void
-SyncRepWaitForLSN(XLogRecPtr XactCommitLSN)
+bool
+SyncRepWaitForLSN(XLogRecPtr XactCommitLSN, bool ForDataFlush, bool Wait)
 {
 	char	   *new_status = NULL;
 	const char *old_status;
-	int			mode = SyncRepWaitMode;
+	int			mode = !ForDataFlush ? SyncRepWaitMode : SyncTransferMode;
+	bool		ret;
 
 	/*
 	 * Fast exit if user has not requested sync replication, or there are no
 	 * sync replication standby names defined. Note that those standbys don't
 	 * need to be connected.
 	 */
-	if (!SyncRepRequested() || !SyncStandbysDefined())
-		return;
+	if ((!SyncRepRequested() || !SyncStandbysDefined()) &&
+	    !SyncTransRequested() && !ForDataFlush)
+		return true;
+
+	/*
+	 * If the caller has specified ForDataFlush, but synchronous transfer
+	 * is not specified or its turned off, exit.
+	 *
+	 * We would like to allow the failback safe mechanism even for cascaded
+	 * standbys as well. But we can't really wait for the standby to catch
+	 * up until we reach a consistent state since the standbys won't be
+	 * even able to connect without us reaching in that state (XXX Confirm)
+	 */
+	if ((!SyncTransRequested()) && ForDataFlush)
+		return true;
+
+	/*
+	 * If the caller has not specified ForDataFlush, but synchronous commit
+	 * is skipped by values of synchronous_transfer, exit.
+	 */
+	if (IsSyncRepSkipped() && !ForDataFlush)
+		return true;
 
 	Assert(SHMQueueIsDetached(&(MyProc->syncRepLinks)));
 	Assert(WalSndCtl != NULL);
@@ -118,12 +150,14 @@ SyncRepWaitForLSN(XLogRecPtr XactCommitLSN)
 	 * Also check that the standby hasn't already replied. Unlikely race
 	 * condition but we'll be fetching that cache line anyway so its likely to
 	 * be a low cost check.
+	 * And if we are told not to block on the standby, exit
 	 */
-	if (!WalSndCtl->sync_standbys_defined ||
-		XactCommitLSN <= WalSndCtl->lsn[mode])
+	if ((!ForDataFlush && !WalSndCtl->sync_standbys_defined) ||
+		XactCommitLSN <= WalSndCtl->lsn[mode] ||
+		!Wait)
 	{
 		LWLockRelease(SyncRepLock);
-		return;
+		return true;
 	}
 
 	/*
@@ -149,6 +183,8 @@ SyncRepWaitForLSN(XLogRecPtr XactCommitLSN)
 		set_ps_display(new_status, false);
 		new_status[len] = '\0'; /* truncate off " waiting ..." */
 	}
+
+	ret = false;
 
 	/*
 	 * Wait for specified LSN to be confirmed.
@@ -186,7 +222,10 @@ SyncRepWaitForLSN(XLogRecPtr XactCommitLSN)
 			LWLockRelease(SyncRepLock);
 		}
 		if (syncRepState == SYNC_REP_WAIT_COMPLETE)
+		{
+			ret = true;
 			break;
+		}
 
 		/*
 		 * If a wait for synchronous replication is pending, we can neither
@@ -263,6 +302,8 @@ SyncRepWaitForLSN(XLogRecPtr XactCommitLSN)
 		set_ps_display(new_status, false);
 		pfree(new_status);
 	}
+
+	return ret;
 }
 
 /*
@@ -370,6 +411,7 @@ SyncRepReleaseWaiters(void)
 	volatile WalSnd *syncWalSnd = NULL;
 	int			numwrite = 0;
 	int			numflush = 0;
+	int			numdataflush = 0;
 	int			priority = 0;
 	int			i;
 
@@ -379,11 +421,10 @@ SyncRepReleaseWaiters(void)
 	 * up, still running base backup or the current flush position is still
 	 * invalid, then leave quickly also.
 	 */
-	if (MyWalSnd->sync_standby_priority == 0 ||
-		MyWalSnd->state < WALSNDSTATE_STREAMING ||
+
+	if (MyWalSnd->state < WALSNDSTATE_STREAMING ||
 		XLogRecPtrIsInvalid(MyWalSnd->flush))
 		return;
-
 	/*
 	 * We're a potential sync standby. Release waiters if we are the highest
 	 * priority standby. If there are multiple standbys with same priorities
@@ -399,7 +440,6 @@ SyncRepReleaseWaiters(void)
 
 		if (walsnd->pid != 0 &&
 			walsnd->state == WALSNDSTATE_STREAMING &&
-			walsnd->sync_standby_priority > 0 &&
 			(priority == 0 ||
 			 priority > walsnd->sync_standby_priority) &&
 			!XLogRecPtrIsInvalid(walsnd->flush))
@@ -438,12 +478,17 @@ SyncRepReleaseWaiters(void)
 		walsndctl->lsn[SYNC_REP_WAIT_FLUSH] = MyWalSnd->flush;
 		numflush = SyncRepWakeQueue(false, SYNC_REP_WAIT_FLUSH);
 	}
+	if (walsndctl->lsn[SYNC_REP_WAIT_DATA_FLUSH] < MyWalSnd->flush)
+	{
+		walsndctl->lsn[SYNC_REP_WAIT_DATA_FLUSH] = MyWalSnd->flush;
+		numdataflush = SyncRepWakeQueue(false, SYNC_REP_WAIT_DATA_FLUSH);
+	}
 
 	LWLockRelease(SyncRepLock);
 
 	elog(DEBUG3, "released %d procs up to write %X/%X, %d procs up to flush %X/%X",
 		 numwrite, (uint32) (MyWalSnd->write >> 32), (uint32) MyWalSnd->write,
-	   numflush, (uint32) (MyWalSnd->flush >> 32), (uint32) MyWalSnd->flush);
+		 numflush, (uint32) (MyWalSnd->flush >> 32), (uint32) MyWalSnd->flush);
 
 	/*
 	 * If we are managing the highest priority standby, though we weren't
@@ -706,6 +751,21 @@ assign_synchronous_commit(int newval, void *extra)
 			break;
 		default:
 			SyncRepWaitMode = SYNC_REP_NO_WAIT;
+			break;
+	}
+}
+
+void
+assign_synchronous_transfer(int newval, void *extra)
+{
+	switch (newval)
+	{
+		case SYNCHRONOUS_TRANSFER_ALL:
+		case SYNCHRONOUS_TRANSFER_DATA_FLUSH:
+			SyncTransferMode = SYNC_REP_WAIT_DATA_FLUSH;
+			break;
+		default:
+			SyncTransferMode = SYNC_REP_NO_WAIT;
 			break;
 	}
 }

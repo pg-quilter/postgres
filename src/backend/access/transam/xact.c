@@ -965,6 +965,7 @@ RecordTransactionCommit(void)
 	SharedInvalidationMessage *invalMessages = NULL;
 	bool		RelcacheInitFileInval = false;
 	bool		wrote_xlog;
+	bool		ret = false;
 
 	/* Get data needed for commit record */
 	nrels = smgrGetPendingDeletes(true, &rels);
@@ -1143,8 +1144,8 @@ RecordTransactionCommit(void)
 	if ((wrote_xlog && synchronous_commit > SYNCHRONOUS_COMMIT_OFF) ||
 		forceSyncCommit || nrels > 0)
 	{
-		XLogFlush(XactLastRecEnd);
-
+		XLogFlush(XactLastRecEnd, false, true);
+		ret = true;
 		/*
 		 * Now we may update the CLOG, if we wrote a COMMIT record above
 		 */
@@ -1195,7 +1196,7 @@ RecordTransactionCommit(void)
 	 * in the procarray and continue to hold locks.
 	 */
 	if (wrote_xlog)
-		SyncRepWaitForLSN(XactLastRecEnd);
+		SyncRepWaitForLSN(XactLastRecEnd, false, !ret);
 
 	/* Reset XactLastRecEnd until the next transaction writes something */
 	XactLastRecEnd = 0;
@@ -4663,7 +4664,7 @@ xact_redo_commit_internal(TransactionId xid, XLogRecPtr lsn,
 		 * after deletion, but that would leave a small window where the
 		 * WAL-first rule would be violated.
 		 */
-		XLogFlush(lsn);
+		XLogFlush(lsn, true, false);
 
 		for (i = 0; i < nrels; i++)
 		{
@@ -4690,7 +4691,7 @@ xact_redo_commit_internal(TransactionId xid, XLogRecPtr lsn,
 	 * for any user that requested ForceSyncCommit().
 	 */
 	if (XactCompletionForceSyncCommit(xinfo))
-		XLogFlush(lsn);
+		XLogFlush(lsn, true, false);
 
 }
 
