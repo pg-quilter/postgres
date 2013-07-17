@@ -85,7 +85,57 @@ static WindowClause *findWindowClause(List *wclist, const char *name);
 static Node *transformFrameOffset(ParseState *pstate, int frameOptions,
 					 Node *clause);
 
+extern void addAliases(ParseState *pstate);
 
+void addAliases(ParseState *pstate)
+{
+	const int noal = 2;
+	char	*aliases[] = {"before","after"};
+	int		i;
+	ListCell   *l;
+	ParseNamespaceItem *nsitem;
+	RangeTblEntry *rte = NULL;
+
+	foreach(l, pstate->p_namespace)
+	{
+		nsitem = (ParseNamespaceItem *) lfirst(l);
+		rte = nsitem->p_rte;
+
+		/* Ignore columns-only items */
+		if (!nsitem->p_rel_visible)
+			continue;
+		/* If not inside LATERAL, ignore lateral-only items */
+		if (nsitem->p_lateral_only && !pstate->p_lateral_active)
+			continue;
+
+		for(i=0 ; i<noal; i++)
+		{
+			if (aliases[i])
+				if (strcmp(rte->eref->aliasname, aliases[i]) == 0)
+				{
+					aliases[i] = NULL;
+				}
+		}
+	}
+
+	l = pstate->p_namespace->head;
+	nsitem = (ParseNamespaceItem *) lfirst(l);
+
+	for(i=0 ; i<noal; i++)
+	{
+		if (aliases[i])
+		{
+			rte = makeNode(RangeTblEntry);
+			rte->eref = makeAlias(aliases[i], nsitem->p_rte->eref->colnames);
+			rte->inh = INH_NO;
+			rte->rtekind = RTE_BEFORE;
+			rte->relkind = RELKIND_BEFORE;
+			rte->relid = nsitem->p_rte->relid;
+			pstate->p_rtable = lappend(pstate->p_rtable, rte);
+			addRTEtoQuery(pstate, rte, true, true, false);
+		}
+	}
+}
 /*
  * transformFromClause -
  *	  Process the FROM clause and add items to the query's range table,
