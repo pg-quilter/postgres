@@ -1218,7 +1218,10 @@ parse_hba_line(List *line, int line_num, char *raw_line)
 #endif
 	else if (strcmp(token->string, "ldap") == 0)
 #ifdef USE_LDAP
+	{
 		parsedline->auth_method = uaLDAP;
+		parsedline->ldapreferrals = TRI_DEFAULT;
+	}
 #else
 		unsupauth = "ldap";
 #endif
@@ -1528,6 +1531,15 @@ parse_hba_auth_opt(char *name, char *val, HbaLine *hbaline, int line_num)
 			hbaline->ldaptls = true;
 		else
 			hbaline->ldaptls = false;
+	}
+	else if (strcmp(name, "ldapreferrals") == 0)
+	{
+		REQUIRE_AUTH_OPTION(uaLDAP, "ldapreferrals", "ldap");
+		if (strcmp(val, "1") == 0)
+			hbaline->ldapreferrals = TRI_YES;
+		else if (strcmp(val, "0") == 0)
+			hbaline->ldapreferrals = TRI_NO;
+			
 	}
 	else if (strcmp(name, "ldapserver") == 0)
 	{

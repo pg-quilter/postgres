@@ -50,6 +50,13 @@ typedef enum ConnType
 	ctHostNoSSL
 } ConnType;
 
+enum trivalue
+{
+	TRI_DEFAULT,
+	TRI_NO,
+	TRI_YES
+};
+
 typedef struct HbaLine
 {
 	int			linenumber;
@@ -66,6 +73,7 @@ typedef struct HbaLine
 	char	   *usermap;
 	char	   *pamservice;
 	bool		ldaptls;
+	enum trivalue		ldapreferrals;
 	char	   *ldapserver;
 	int			ldapport;
 	char	   *ldapbinddn;
