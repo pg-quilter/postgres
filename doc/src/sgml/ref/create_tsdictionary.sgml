@@ -21,7 +21,7 @@ PostgreSQL documentation
 
  <refsynopsisdiv>
 <synopsis>
-CREATE TEXT SEARCH DICTIONARY <replaceable class="parameter">name</replaceable> (
+CREATE TEXT SEARCH DICTIONARY [ IF NOT EXISTS ] <replaceable class="parameter">name</replaceable> (
     TEMPLATE = <replaceable class="parameter">template</replaceable>
     [, <replaceable class="parameter">option</replaceable> = <replaceable class="parameter">value</replaceable> [, ... ]]
 )
@@ -58,6 +58,16 @@ CREATE TEXT SEARCH DICTIONARY <replaceable class="parameter">name</replaceable> 
   <title>Parameters</title>
 
   <variablelist>
+   <varlistentry>
+    <term><literal>IF NOT EXISTS</literal></term>
+    <listitem>
+     <para>
+      Do nothing (except issuing a notice) if a text search dictionary
+      with the same name already exists.
+     </para>
+    </listitem>
+   </varlistentry>
+
    <varlistentry>
     <term><replaceable class="parameter">name</replaceable></term>
     <listitem>

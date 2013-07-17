@@ -51,7 +51,8 @@ AggregateCreate(const char *aggName,
 				List *aggfinalfnName,
 				List *aggsortopName,
 				Oid aggTransType,
-				const char *agginitval)
+				const char *agginitval,
+				bool aggIfNotExists)
 {
 	Relation	aggdesc;
 	HeapTuple	tup;
@@ -252,7 +253,11 @@ AggregateCreate(const char *aggName,
 							  NIL,		/* parameterDefaults */
 							  PointerGetDatum(NULL),	/* proconfig */
 							  1,	/* procost */
-							  0);		/* prorows */
+							  0,		/* prorows */
+							  aggIfNotExists);	/* if not exists */
+
+	if (!OidIsValid(procOid))
+		return InvalidOid;
 
 	/*
 	 * Okay to create the pg_aggregate entry.

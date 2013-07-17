@@ -14,6 +14,24 @@ CREATE TYPE widget (
    typmod_out = numerictypmodout,
    alignment = double
 );
+CREATE TYPE widget (
+   internallength = 24,
+   input = widget_in,
+   output = widget_out,
+   typmod_in = numerictypmodin,
+   typmod_out = numerictypmodout,
+   alignment = double
+);
+ERROR:  type "widget" already exists
+CREATE TYPE IF NOT EXISTS widget (
+   internallength = 24,
+   input = widget_in,
+   output = widget_out,
+   typmod_in = numerictypmodin,
+   typmod_out = numerictypmodout,
+   alignment = double
+);
+NOTICE:  type "widget" already exists, skipping
 CREATE TYPE city_budget (
    internallength = 16,
    input = int44in,
@@ -26,6 +44,8 @@ CREATE TYPE city_budget (
 CREATE TYPE shell;
 CREATE TYPE shell;   -- fail, type already present
 ERROR:  type "shell" already exists
+CREATE TYPE IF NOT EXISTS shell;   -- do not fail, just skip
+NOTICE:  type "shell" already exists, skipping
 DROP TYPE shell;
 DROP TYPE shell;     -- fail, type not exist
 ERROR:  type "shell" does not exist
@@ -83,6 +103,10 @@ SELECT * FROM default_test;
 
 -- Test stand-alone composite type
 CREATE TYPE default_test_row AS (f1 text_w_default, f2 int42);
+CREATE TYPE default_test_row AS (f1 text_w_default, f2 int42);
+ERROR:  type "default_test_row" already exists
+CREATE TYPE IF NOT EXISTS default_test_row AS (f1 text_w_default, f2 int42);
+NOTICE:  type "default_test_row" already exists, skipping
 CREATE FUNCTION get_default_test() RETURNS SETOF default_test_row AS '
   SELECT * FROM default_test;
 ' LANGUAGE SQL;

@@ -5,6 +5,18 @@ CREATE TEXT SEARCH DICTIONARY ispell (
                         DictFile=ispell_sample,
                         AffFile=ispell_sample
 );
+CREATE TEXT SEARCH DICTIONARY ispell (
+                        Template=ispell,
+                        DictFile=ispell_sample,
+                        AffFile=ispell_sample
+);
+ERROR:  text search dictionary "public"."ispell" already exists
+CREATE TEXT SEARCH DICTIONARY IF NOT EXISTS ispell (
+                        Template=ispell,
+                        DictFile=ispell_sample,
+                        AffFile=ispell_sample
+);
+NOTICE:  text search dictionary "public"."ispell" already exists, skipping
 SELECT ts_lexize('ispell', 'skies');
  ts_lexize 
 -----------
@@ -232,6 +244,14 @@ SELECT ts_lexize('thesaurus', 'one');
 CREATE TEXT SEARCH CONFIGURATION ispell_tst (
 						COPY=english
 );
+CREATE TEXT SEARCH CONFIGURATION ispell_tst (
+						COPY=english
+);
+ERROR:  text search configuration "public"."ispell_tst" already exists
+CREATE TEXT SEARCH CONFIGURATION IF NOT EXISTS ispell_tst (
+						COPY=english
+);
+NOTICE:  text search configuration "public"."ispell_tst" already exists, skipping
 ALTER TEXT SEARCH CONFIGURATION ispell_tst ALTER MAPPING FOR
 	word, numword, asciiword, hword, numhword, asciihword, hword_part, hword_numpart, hword_asciipart
 	WITH ispell, english_stem;

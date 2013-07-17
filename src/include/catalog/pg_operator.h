@@ -1752,6 +1752,7 @@ extern Oid OperatorCreate(const char *operatorName,
 			   Oid restrictionId,
 			   Oid joinId,
 			   bool canMerge,
-			   bool canHash);
+			   bool canHash,
+			   bool ifNotExists);
 
 #endif   /* PG_OPERATOR_H */

@@ -1,6 +1,8 @@
 -- Tests for range data types.
 
 create type textrange as range (subtype=text, collation="C");
+create type textrange as range (subtype=text, collation="C");
+create type if not exists textrange as range (subtype=text, collation="C");
 
 --
 -- test input parser

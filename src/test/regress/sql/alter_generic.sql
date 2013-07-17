@@ -334,6 +334,8 @@ SELECT nspname, cfgname, rolname
 -- Text Search Template
 --
 CREATE TEXT SEARCH TEMPLATE alt_ts_temp1 (lexize=dsimple_lexize);
+CREATE TEXT SEARCH TEMPLATE alt_ts_temp1 (lexize=dsimple_lexize);
+CREATE TEXT SEARCH TEMPLATE IF NOT EXISTS alt_ts_temp1 (lexize=dsimple_lexize);
 CREATE TEXT SEARCH TEMPLATE alt_ts_temp2 (lexize=dsimple_lexize);
 
 ALTER TEXT SEARCH TEMPLATE alt_ts_temp1 RENAME TO alt_ts_temp2; -- failed (name conflict)
@@ -353,6 +355,10 @@ SELECT nspname, tmplname
 --
 
 CREATE TEXT SEARCH PARSER alt_ts_prs1
+    (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
+CREATE TEXT SEARCH PARSER alt_ts_prs1
+    (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
+CREATE TEXT SEARCH PARSER IF NOT EXISTS alt_ts_prs1
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
 CREATE TEXT SEARCH PARSER alt_ts_prs2
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);

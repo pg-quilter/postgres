@@ -48,7 +48,7 @@
  * "args" defines the input type(s).
  */
 Oid
-DefineAggregate(List *name, List *args, bool oldstyle, List *parameters)
+DefineAggregate(List *name, List *args, bool oldstyle, List *parameters, bool ifNotExists)
 {
 	char	   *aggName;
 	Oid			aggNamespace;
@@ -224,6 +224,7 @@ DefineAggregate(List *name, List *args, bool oldstyle, List *parameters)
 						   transfuncName,		/* step function name */
 						   finalfuncName,		/* final function name */
 						   sortoperatorName,	/* sort operator name */
-						   transTypeId, /* transition data type */
-						   initval);	/* initial condition */
+						   transTypeId,	/* transition data type */
+						   initval,		/* initial condition */
+						   ifNotExists);	/* if not exists flag */
 }

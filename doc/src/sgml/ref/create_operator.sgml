@@ -21,7 +21,7 @@ PostgreSQL documentation
 
  <refsynopsisdiv>
 <synopsis>
-CREATE OPERATOR <replaceable>name</replaceable> (
+CREATE OPERATOR [ IF NOT EXISTS ] <replaceable>name</replaceable> (
     PROCEDURE = <replaceable class="parameter">function_name</replaceable>
     [, LEFTARG = <replaceable class="parameter">left_type</replaceable> ] [, RIGHTARG = <replaceable class="parameter">right_type</replaceable> ]
     [, COMMUTATOR = <replaceable class="parameter">com_op</replaceable> ] [, NEGATOR = <replaceable class="parameter">neg_op</replaceable> ]
@@ -116,6 +116,16 @@ CREATE OPERATOR <replaceable>name</replaceable> (
   <title>Parameters</title>
 
     <variablelist>
+     <varlistentry>
+      <term><literal>IF NOT EXISTS</literal></term>
+      <listitem>
+       <para>
+        Do nothing (except issuing a notice) if an operator with the same
+        name already exists.
+       </para>
+      </listitem>
+     </varlistentry>
+
      <varlistentry>
       <term><replaceable class="parameter">name</replaceable></term>
       <listitem>

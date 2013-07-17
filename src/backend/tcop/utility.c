@@ -1103,34 +1103,41 @@ ProcessUtilitySlow(Node *parsetree,
 					{
 						case OBJECT_AGGREGATE:
 							DefineAggregate(stmt->defnames, stmt->args,
-											stmt->oldstyle, stmt->definition);
+											stmt->oldstyle, stmt->definition,
+											stmt->if_not_exists);
 							break;
 						case OBJECT_OPERATOR:
 							Assert(stmt->args == NIL);
-							DefineOperator(stmt->defnames, stmt->definition);
+							DefineOperator(stmt->defnames, stmt->definition,
+										   stmt->if_not_exists);
 							break;
 						case OBJECT_TYPE:
 							Assert(stmt->args == NIL);
-							DefineType(stmt->defnames, stmt->definition);
+							DefineType(stmt->defnames, stmt->definition,
+									   stmt->if_not_exists);
 							break;
 						case OBJECT_TSPARSER:
 							Assert(stmt->args == NIL);
-							DefineTSParser(stmt->defnames, stmt->definition);
+							DefineTSParser(stmt->defnames, stmt->definition,
+										   stmt->if_not_exists);
 							break;
 						case OBJECT_TSDICTIONARY:
 							Assert(stmt->args == NIL);
 							DefineTSDictionary(stmt->defnames,
-											   stmt->definition);
+											   stmt->definition,
+											   stmt->if_not_exists);
 							break;
 						case OBJECT_TSTEMPLATE:
 							Assert(stmt->args == NIL);
 							DefineTSTemplate(stmt->defnames,
-											 stmt->definition);
+											 stmt->definition,
+											 stmt->if_not_exists);
 							break;
 						case OBJECT_TSCONFIGURATION:
 							Assert(stmt->args == NIL);
 							DefineTSConfiguration(stmt->defnames,
-												  stmt->definition);
+												  stmt->definition,
+												  stmt->if_not_exists);
 							break;
 						case OBJECT_COLLATION:
 							Assert(stmt->args == NIL);
@@ -1211,7 +1218,7 @@ ProcessUtilitySlow(Node *parsetree,
 				{
 					CompositeTypeStmt *stmt = (CompositeTypeStmt *) parsetree;
 
-					DefineCompositeType(stmt->typevar, stmt->coldeflist);
+					DefineCompositeType(stmt->typevar, stmt->coldeflist, stmt->if_not_exists);
 				}
 				break;
 

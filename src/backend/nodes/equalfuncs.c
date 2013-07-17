@@ -1119,6 +1119,7 @@ _equalDefineStmt(const DefineStmt *a, const DefineStmt *b)
 	COMPARE_NODE_FIELD(defnames);
 	COMPARE_NODE_FIELD(args);
 	COMPARE_NODE_FIELD(definition);
+	COMPARE_SCALAR_FIELD(if_not_exists);
 
 	return true;
 }
@@ -1340,6 +1341,7 @@ _equalCompositeTypeStmt(const CompositeTypeStmt *a, const CompositeTypeStmt *b)
 {
 	COMPARE_NODE_FIELD(typevar);
 	COMPARE_NODE_FIELD(coldeflist);
+	COMPARE_SCALAR_FIELD(if_not_exists);
 
 	return true;
 }
@@ -1349,6 +1351,7 @@ _equalCreateEnumStmt(const CreateEnumStmt *a, const CreateEnumStmt *b)
 {
 	COMPARE_NODE_FIELD(typeName);
 	COMPARE_NODE_FIELD(vals);
+	COMPARE_SCALAR_FIELD(if_not_exists);
 
 	return true;
 }
@@ -1358,6 +1361,7 @@ _equalCreateRangeStmt(const CreateRangeStmt *a, const CreateRangeStmt *b)
 {
 	COMPARE_NODE_FIELD(typeName);
 	COMPARE_NODE_FIELD(params);
+	COMPARE_SCALAR_FIELD(if_not_exists);
 
 	return true;
 }
@@ -1877,6 +1881,7 @@ _equalCreateCastStmt(const CreateCastStmt *a, const CreateCastStmt *b)
 	COMPARE_NODE_FIELD(func);
 	COMPARE_SCALAR_FIELD(context);
 	COMPARE_SCALAR_FIELD(inout);
+	COMPARE_SCALAR_FIELD(if_not_exists);
 
 	return true;
 }

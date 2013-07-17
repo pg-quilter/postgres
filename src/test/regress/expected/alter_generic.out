@@ -406,6 +406,10 @@ SELECT nspname, cfgname, rolname
 -- Text Search Template
 --
 CREATE TEXT SEARCH TEMPLATE alt_ts_temp1 (lexize=dsimple_lexize);
+CREATE TEXT SEARCH TEMPLATE alt_ts_temp1 (lexize=dsimple_lexize);
+ERROR:  text search template "alt_nsp1"."alt_ts_temp1" already exists
+CREATE TEXT SEARCH TEMPLATE IF NOT EXISTS alt_ts_temp1 (lexize=dsimple_lexize);
+NOTICE:  text search template "alt_nsp1"."alt_ts_temp1" already exists, skipping
 CREATE TEXT SEARCH TEMPLATE alt_ts_temp2 (lexize=dsimple_lexize);
 ALTER TEXT SEARCH TEMPLATE alt_ts_temp1 RENAME TO alt_ts_temp2; -- failed (name conflict)
 ERROR:  text search template "alt_ts_temp2" already exists in schema "alt_nsp1"
@@ -430,6 +434,12 @@ SELECT nspname, tmplname
 --
 CREATE TEXT SEARCH PARSER alt_ts_prs1
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
+CREATE TEXT SEARCH PARSER alt_ts_prs1
+    (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
+ERROR:  text search parser "alt_nsp1"."alt_ts_prs1" already exists
+CREATE TEXT SEARCH PARSER IF NOT EXISTS alt_ts_prs1
+    (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
+NOTICE:  text search parser "alt_nsp1"."alt_ts_prs1" already exists, skipping
 CREATE TEXT SEARCH PARSER alt_ts_prs2
     (start = prsd_start, gettoken = prsd_nexttoken, end = prsd_end, lextypes = prsd_lextype);
 ALTER TEXT SEARCH PARSER alt_ts_prs1 RENAME TO alt_ts_prs2; -- failed (name conflict)

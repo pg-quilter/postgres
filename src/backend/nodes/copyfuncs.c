@@ -2766,6 +2766,7 @@ _copyDefineStmt(const DefineStmt *from)
 	COPY_NODE_FIELD(defnames);
 	COPY_NODE_FIELD(args);
 	COPY_NODE_FIELD(definition);
+	COPY_SCALAR_FIELD(if_not_exists);
 
 	return newnode;
 }
@@ -3025,6 +3026,7 @@ _copyCompositeTypeStmt(const CompositeTypeStmt *from)
 
 	COPY_NODE_FIELD(typevar);
 	COPY_NODE_FIELD(coldeflist);
+	COPY_SCALAR_FIELD(if_not_exists);
 
 	return newnode;
 }
@@ -3036,6 +3038,7 @@ _copyCreateEnumStmt(const CreateEnumStmt *from)
 
 	COPY_NODE_FIELD(typeName);
 	COPY_NODE_FIELD(vals);
+	COPY_SCALAR_FIELD(if_not_exists);
 
 	return newnode;
 }
@@ -3047,6 +3050,7 @@ _copyCreateRangeStmt(const CreateRangeStmt *from)
 
 	COPY_NODE_FIELD(typeName);
 	COPY_NODE_FIELD(params);
+	COPY_SCALAR_FIELD(if_not_exists);
 
 	return newnode;
 }
@@ -3662,6 +3666,7 @@ _copyCreateCastStmt(const CreateCastStmt *from)
 	COPY_NODE_FIELD(func);
 	COPY_SCALAR_FIELD(context);
 	COPY_SCALAR_FIELD(inout);
+	COPY_SCALAR_FIELD(if_not_exists);
 
 	return newnode;
 }

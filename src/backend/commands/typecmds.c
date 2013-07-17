@@ -114,7 +114,7 @@ static char *domainAddConstraint(Oid domainOid, Oid domainNamespace,
  *		Registers a new base type.
  */
 Oid
-DefineType(List *names, List *parameters)
+DefineType(List *names, List *parameters, bool ifNotExists)
 {
 	char	   *typeName;
 	Oid			typeNamespace;
@@ -233,9 +233,20 @@ DefineType(List *names, List *parameters)
 	{
 		/* Complain if dummy CREATE TYPE and entry already exists */
 		if (parameters == NIL)
+		{
+			/* skip if already exists */
+			if (ifNotExists)
+			{
+				ereport(NOTICE,
+						(errcode(ERRCODE_DUPLICATE_OBJECT),
+						 errmsg("type \"%s\" already exists, skipping", typeName)));
+				return InvalidOid;
+			}
+
 			ereport(ERROR,
 					(errcode(ERRCODE_DUPLICATE_OBJECT),
 					 errmsg("type \"%s\" already exists", typeName)));
+		}
 	}
 
 	/* Extract the parameters from the parameter list */
@@ -585,7 +596,11 @@ DefineType(List *names, List *parameters)
 				   -1,			/* typMod (Domains only) */
 				   0,			/* Array Dimensions of typbasetype */
 				   false,		/* Type NOT NULL */
-				   collation);	/* type's collation */
+				   collation,	/* type's collation */
+				   ifNotExists);	/* if not exists flag */
+
+	if (!OidIsValid(typoid))
+		return typoid;
 
 	/*
 	 * Create the array type that goes with it.
@@ -621,11 +636,12 @@ DefineType(List *names, List *parameters)
 						NULL,	/* binary default isn't sent either */
 						false,	/* never passed by value */
 						alignment,		/* see above */
-						'x',	/* ARRAY is always toastable */
-						-1,		/* typMod (Domains only) */
-						0,		/* Array dimensions of typbasetype */
-						false,	/* Type NOT NULL */
-						collation);		/* type's collation */
+						'x',				/* ARRAY is always toastable */
+						-1,				/* typMod (Domains only) */
+						0,				/* Array dimensions of typbasetype */
+						false,			/* Type NOT NULL */
+						collation,		/* type's collation */
+						ifNotExists);	/* if not exists flag */
 
 	pfree(array_type);
 
@@ -1011,7 +1027,8 @@ DefineDomain(CreateDomainStmt *stmt)
 				   basetypeMod, /* typeMod value */
 				   typNDims,	/* Array dimensions for base type */
 				   typNotNull,	/* Type NOT NULL */
-				   domaincoll); /* type's collation */
+				   domaincoll,	/* type's collation */
+				   false);		/* if not exists flag */
 
 	/*
 	 * Process constraints which refer to the domain ID returned by TypeCreate
@@ -1084,9 +1101,20 @@ DefineEnum(CreateEnumStmt *stmt)
 	if (OidIsValid(old_type_oid))
 	{
 		if (!moveArrayTypeName(old_type_oid, enumName, enumNamespace))
+		{
+			if (stmt->if_not_exists)
+			{
+				ereport(NOTICE,
+						(errcode(ERRCODE_DUPLICATE_OBJECT),
+						 errmsg("type \"%s\" already exists, skipping", enumName)));
+				return InvalidOid;
+			}
+
 			ereport(ERROR,
 					(errcode(ERRCODE_DUPLICATE_OBJECT),
 					 errmsg("type \"%s\" already exists", enumName)));
+
+		}
 	}
 
 	enumArrayOid = AssignTypeArrayOid();
@@ -1123,7 +1151,11 @@ DefineEnum(CreateEnumStmt *stmt)
 				   -1,			/* typMod (Domains only) */
 				   0,			/* Array dimensions of typbasetype */
 				   false,		/* Type NOT NULL */
-				   InvalidOid); /* type's collation */
+				   InvalidOid,	/* type's collation */
+				   stmt->if_not_exists);		/* if not exists flag */
+
+	if (!OidIsValid(enumTypeOid))
+		return enumTypeOid;
 
 	/* Enter the enum's values into pg_enum */
 	EnumValuesCreate(enumTypeOid, stmt->vals);
@@ -1163,7 +1195,8 @@ DefineEnum(CreateEnumStmt *stmt)
 			   -1,				/* typMod (Domains only) */
 			   0,				/* Array dimensions of typbasetype */
 			   false,			/* Type NOT NULL */
-			   InvalidOid);		/* type's collation */
+			   InvalidOid,		/* type's collation */
+			   stmt->if_not_exists);			/* if not exists flag */
 
 	pfree(enumArrayName);
 
@@ -1302,9 +1335,19 @@ DefineRange(CreateRangeStmt *stmt)
 		if (moveArrayTypeName(typoid, typeName, typeNamespace))
 			typoid = InvalidOid;
 		else
-			ereport(ERROR,
-					(errcode(ERRCODE_DUPLICATE_OBJECT),
-					 errmsg("type \"%s\" already exists", typeName)));
+		{
+			if (!stmt->if_not_exists)
+				ereport(ERROR,
+						(errcode(ERRCODE_DUPLICATE_OBJECT),
+						 errmsg("type \"%s\" already exists", typeName)));
+			else
+			{
+				ereport(NOTICE,
+						(errcode(ERRCODE_DUPLICATE_OBJECT),
+						 errmsg("type \"%s\" already exists, skipping", typeName)));
+				return InvalidOid;
+			}
+		}
 	}
 
 	/*
@@ -1457,7 +1500,11 @@ DefineRange(CreateRangeStmt *stmt)
 				   -1,			/* typMod (Domains only) */
 				   0,			/* Array dimensions of typbasetype */
 				   false,		/* Type NOT NULL */
-				   InvalidOid); /* type's collation (ranges never have one) */
+				   InvalidOid,	/* type's collation (ranges never have one) */
+				   stmt->if_not_exists);		/* if not exists flag */
+
+	if (!OidIsValid(typoid))
+		return typoid;
 
 	/* Create the entry in pg_range */
 	RangeCreate(typoid, rangeSubtype, rangeCollation, rangeSubOpclass,
@@ -1498,7 +1545,8 @@ DefineRange(CreateRangeStmt *stmt)
 			   -1,				/* typMod (Domains only) */
 			   0,				/* Array dimensions of typbasetype */
 			   false,			/* Type NOT NULL */
-			   InvalidOid);		/* typcollation */
+			   InvalidOid,		/* typcollation */
+			   stmt->if_not_exists);			/* if not exists flag */
 
 	pfree(rangeArrayName);
 
@@ -1569,7 +1617,8 @@ makeRangeConstructors(const char *name, Oid namespace,
 								  NIL,	/* parameterDefaults */
 								  PointerGetDatum(NULL),		/* proconfig */
 								  1.0,	/* procost */
-								  0.0); /* prorows */
+								  0.0,	/* prorows */
+								  false);	/* if not exists */
 
 		/*
 		 * Make the constructors internally-dependent on the range type so
@@ -2018,7 +2067,7 @@ AssignTypeArrayOid(void)
  *-------------------------------------------------------------------
  */
 Oid
-DefineCompositeType(RangeVar *typevar, List *coldeflist)
+DefineCompositeType(RangeVar *typevar, List *coldeflist, bool ifNotExists)
 {
 	CreateStmt *createStmt = makeNode(CreateStmt);
 	Oid			old_type_oid;
@@ -2054,9 +2103,19 @@ DefineCompositeType(RangeVar *typevar, List *coldeflist)
 	if (OidIsValid(old_type_oid))
 	{
 		if (!moveArrayTypeName(old_type_oid, createStmt->relation->relname, typeNamespace))
-			ereport(ERROR,
-					(errcode(ERRCODE_DUPLICATE_OBJECT),
-					 errmsg("type \"%s\" already exists", createStmt->relation->relname)));
+		{
+			if (!ifNotExists)
+				ereport(ERROR,
+						(errcode(ERRCODE_DUPLICATE_OBJECT),
+						 errmsg("type \"%s\" already exists", createStmt->relation->relname)));
+			else
+			{
+				ereport(NOTICE,
+						(errcode(ERRCODE_DUPLICATE_OBJECT),
+						 errmsg("type \"%s\" already exists, skipping", createStmt->relation->relname)));
+				return InvalidOid;
+			}
+		}
 	}
 
 	/*

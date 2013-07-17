@@ -168,7 +168,7 @@ makeParserDependencies(HeapTuple tuple)
  * CREATE TEXT SEARCH PARSER
  */
 Oid
-DefineTSParser(List *names, List *parameters)
+DefineTSParser(List *names, List *parameters, bool ifNotExists)
 {
 	char	   *prsname;
 	ListCell   *pl;
@@ -187,6 +187,31 @@ DefineTSParser(List *names, List *parameters)
 
 	/* Convert list of names to a name and namespace */
 	namespaceoid = QualifiedNameGetCreationNamespace(names, &prsname);
+
+	/* Check if text search parser already exists */
+	prsOid = GetSysCacheOid2(TSPARSERNAMENSP,
+							 CStringGetDatum(prsname),
+							 ObjectIdGetDatum(namespaceoid));
+
+	if (OidIsValid(prsOid))
+	{
+		/* skip if already exists */
+		if (ifNotExists)
+		{
+			ereport(NOTICE,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("text search parser \"%s\".\"%s\" already exists, skipping",
+							get_namespace_name(namespaceoid),
+							prsname)));
+			return InvalidOid;
+		}
+
+		ereport(ERROR,
+				(errcode(ERRCODE_DUPLICATE_OBJECT),
+				 errmsg("text search parser \"%s\".\"%s\" already exists",
+						get_namespace_name(namespaceoid),
+						prsname)));
+	}
 
 	/* initialize tuple fields with name/namespace */
 	memset(values, 0, sizeof(values));
@@ -398,7 +423,7 @@ verify_dictoptions(Oid tmplId, List *dictoptions)
  * CREATE TEXT SEARCH DICTIONARY
  */
 Oid
-DefineTSDictionary(List *names, List *parameters)
+DefineTSDictionary(List *names, List *parameters, bool ifNotExists)
 {
 	ListCell   *pl;
 	Relation	dictRel;
@@ -412,15 +437,43 @@ DefineTSDictionary(List *names, List *parameters)
 	Oid			namespaceoid;
 	AclResult	aclresult;
 	char	   *dictname;
+	char	   *dictnamespace;
 
 	/* Convert list of names to a name and namespace */
 	namespaceoid = QualifiedNameGetCreationNamespace(names, &dictname);
+
+	/* Get namespace name */
+	dictnamespace = get_namespace_name(namespaceoid);
 
 	/* Check we have creation rights in target namespace */
 	aclresult = pg_namespace_aclcheck(namespaceoid, GetUserId(), ACL_CREATE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error(aclresult, ACL_KIND_NAMESPACE,
-					   get_namespace_name(namespaceoid));
+					   dictnamespace);
+
+	/* Check if text search dictionary already exists */
+	dictOid = GetSysCacheOid2(TSDICTNAMENSP,
+							  CStringGetDatum(dictname),
+							  ObjectIdGetDatum(namespaceoid));
+
+	if (OidIsValid(dictOid))
+	{
+		if (!ifNotExists)
+			ereport(ERROR,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("text search dictionary \"%s\".\"%s\" already exists",
+							dictnamespace,
+							dictname)));
+		else
+		{
+			ereport(NOTICE,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("text search dictionary \"%s\".\"%s\" already exists, skipping",
+							dictnamespace,
+							dictname)));
+			return InvalidOid;
+		}
+	}
 
 	/*
 	 * loop over the definition list and extract the information we need.
@@ -716,7 +769,7 @@ makeTSTemplateDependencies(HeapTuple tuple)
  * CREATE TEXT SEARCH TEMPLATE
  */
 Oid
-DefineTSTemplate(List *names, List *parameters)
+DefineTSTemplate(List *names, List *parameters, bool ifNotExists)
 {
 	ListCell   *pl;
 	Relation	tmplRel;
@@ -736,6 +789,30 @@ DefineTSTemplate(List *names, List *parameters)
 
 	/* Convert list of names to a name and namespace */
 	namespaceoid = QualifiedNameGetCreationNamespace(names, &tmplname);
+
+	/* Check if text search template already exists */
+	tmplOid = GetSysCacheOid2(TSTEMPLATENAMENSP,
+							  CStringGetDatum(tmplname),
+							  ObjectIdGetDatum(namespaceoid));
+
+	if (OidIsValid(tmplOid))
+	{
+		if (!ifNotExists)
+			ereport(ERROR,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("text search template \"%s\".\"%s\" already exists",
+							get_namespace_name(namespaceoid),
+							tmplname)));
+		else
+		{
+			ereport(NOTICE,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("text search template \"%s\".\"%s\" already exists, skipping",
+							get_namespace_name(namespaceoid),
+							tmplname)));
+			return InvalidOid;
+		}
+	}
 
 	for (i = 0; i < Natts_pg_ts_template; i++)
 	{
@@ -946,7 +1023,7 @@ makeConfigurationDependencies(HeapTuple tuple, bool removeOld,
  * CREATE TEXT SEARCH CONFIGURATION
  */
 Oid
-DefineTSConfiguration(List *names, List *parameters)
+DefineTSConfiguration(List *names, List *parameters, bool ifNotExists)
 {
 	Relation	cfgRel;
 	Relation	mapRel = NULL;
@@ -956,6 +1033,7 @@ DefineTSConfiguration(List *names, List *parameters)
 	AclResult	aclresult;
 	Oid			namespaceoid;
 	char	   *cfgname;
+	char	   *cfgnamespace;
 	NameData	cname;
 	Oid			sourceOid = InvalidOid;
 	Oid			prsOid = InvalidOid;
@@ -965,11 +1043,39 @@ DefineTSConfiguration(List *names, List *parameters)
 	/* Convert list of names to a name and namespace */
 	namespaceoid = QualifiedNameGetCreationNamespace(names, &cfgname);
 
+	/* Get namespace name */
+	cfgnamespace = get_namespace_name(namespaceoid);
+
 	/* Check we have creation rights in target namespace */
 	aclresult = pg_namespace_aclcheck(namespaceoid, GetUserId(), ACL_CREATE);
 	if (aclresult != ACLCHECK_OK)
 		aclcheck_error(aclresult, ACL_KIND_NAMESPACE,
-					   get_namespace_name(namespaceoid));
+					   cfgnamespace);
+
+	/* Check if text search configuration already exists */
+	cfgOid = GetSysCacheOid2(TSCONFIGNAMENSP,
+							 CStringGetDatum(cfgname),
+							 ObjectIdGetDatum(namespaceoid));
+
+	if (OidIsValid(cfgOid))
+	{
+		if (!ifNotExists)
+			ereport(ERROR,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("text search configuration \"%s\".\"%s\" already exists",
+							cfgnamespace,
+							cfgname)));
+		else
+		{
+			ereport(NOTICE,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("text search configuration \"%s\".\"%s\" already exists, skipping",
+							cfgnamespace,
+							cfgname)));
+			return InvalidOid;
+		}
+	}
+
 
 	/*
 	 * loop over the definition list and extract the information we need.

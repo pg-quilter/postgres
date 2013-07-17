@@ -21,7 +21,7 @@ PostgreSQL documentation
 
  <refsynopsisdiv>
 <synopsis>
-CREATE TEXT SEARCH CONFIGURATION <replaceable class="parameter">name</replaceable> (
+CREATE TEXT SEARCH CONFIGURATION [ IF NOT EXISTS ] <replaceable class="parameter">name</replaceable> (
     PARSER = <replaceable class="parameter">parser_name</replaceable> |
     COPY = <replaceable class="parameter">source_config</replaceable>
 )
@@ -65,6 +65,16 @@ CREATE TEXT SEARCH CONFIGURATION <replaceable class="parameter">name</replaceabl
   <title>Parameters</title>
 
   <variablelist>
+   <varlistentry>
+    <term><literal>IF NOT EXISTS</literal></term>
+    <listitem>
+     <para>
+      Do nothing (except issuing a notice) if a text search configuration
+      with the same name already exists.
+     </para>
+    </listitem>
+   </varlistentry>
+
    <varlistentry>
     <term><replaceable class="parameter">name</replaceable></term>
     <listitem>

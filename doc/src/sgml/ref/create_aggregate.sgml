@@ -21,7 +21,7 @@ PostgreSQL documentation
 
  <refsynopsisdiv>
 <synopsis>
-CREATE AGGREGATE <replaceable class="PARAMETER">name</replaceable> ( <replaceable class="PARAMETER">input_data_type</replaceable> [ , ... ] ) (
+CREATE AGGREGATE [ IF NOT EXISTS ] <replaceable class="PARAMETER">name</replaceable> ( <replaceable class="PARAMETER">input_data_type</replaceable> [ , ... ] ) (
     SFUNC = <replaceable class="PARAMETER">sfunc</replaceable>,
     STYPE = <replaceable class="PARAMETER">state_data_type</replaceable>
     [ , FINALFUNC = <replaceable class="PARAMETER">ffunc</replaceable> ]
@@ -31,7 +31,7 @@ CREATE AGGREGATE <replaceable class="PARAMETER">name</replaceable> ( <replaceabl
 
 <phrase>or the old syntax</phrase>
 
-CREATE AGGREGATE <replaceable class="PARAMETER">name</replaceable> (
+CREATE AGGREGATE [ IF NOT EXISTS ] <replaceable class="PARAMETER">name</replaceable> (
     BASETYPE = <replaceable class="PARAMETER">base_type</replaceable>,
     SFUNC = <replaceable class="PARAMETER">sfunc</replaceable>,
     STYPE = <replaceable class="PARAMETER">state_data_type</replaceable>
@@ -176,6 +176,16 @@ SELECT col FROM tab ORDER BY col USING sortop LIMIT 1;
   <title>Parameters</title>
 
   <variablelist>
+   <varlistentry>
+    <term><literal>IF NOT EXISTS</literal></term>
+    <listitem>
+     <para>
+      Do nothing (except issuing a notice) if an aggregate function with
+      the same argument types already exists.
+     </para>
+    </listitem>
+   </varlistentry>
+
    <varlistentry>
     <term><replaceable class="PARAMETER">name</replaceable></term>
     <listitem>

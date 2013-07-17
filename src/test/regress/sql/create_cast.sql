@@ -29,18 +29,24 @@ SELECT casttestfunc('foo'::text); -- fails, as there's no cast
 
 -- Try binary coercion cast
 CREATE CAST (text AS casttesttype) WITHOUT FUNCTION;
+CREATE CAST (text AS casttesttype) WITHOUT FUNCTION;
+CREATE CAST IF NOT EXISTS (text AS casttesttype) WITHOUT FUNCTION;
 SELECT casttestfunc('foo'::text); -- doesn't work, as the cast is explicit
 SELECT casttestfunc('foo'::text::casttesttype); -- should work
 DROP CAST (text AS casttesttype); -- cleanup
 
 -- Try IMPLICIT binary coercion cast
 CREATE CAST (text AS casttesttype) WITHOUT FUNCTION AS IMPLICIT;
+CREATE CAST (text AS casttesttype) WITHOUT FUNCTION AS IMPLICIT;
+CREATE CAST IF NOT EXISTS (text AS casttesttype) WITHOUT FUNCTION AS IMPLICIT;
 SELECT casttestfunc('foo'::text); -- Should work now
 
 -- Try I/O conversion cast.
 SELECT 1234::int4::casttesttype; -- No cast yet, should fail
 
 CREATE CAST (int4 AS casttesttype) WITH INOUT;
+CREATE CAST (int4 AS casttesttype) WITH INOUT;
+CREATE CAST IF NOT EXISTS (int4 AS casttesttype) WITH INOUT;
 SELECT 1234::int4::casttesttype; -- Should work now
 
 DROP CAST (int4 AS casttesttype);
@@ -51,4 +57,6 @@ CREATE FUNCTION int4_casttesttype(int4) RETURNS casttesttype LANGUAGE SQL AS
 $$ SELECT ('foo'::text || $1::text)::casttesttype; $$;
 
 CREATE CAST (int4 AS casttesttype) WITH FUNCTION int4_casttesttype(int4) AS IMPLICIT;
+CREATE CAST (int4 AS casttesttype) WITH FUNCTION int4_casttesttype(int4) AS IMPLICIT;
+CREATE CAST IF NOT EXISTS (int4 AS casttesttype) WITH FUNCTION int4_casttesttype(int4) AS IMPLICIT;
 SELECT 1234::int4::casttesttype; -- Should work now

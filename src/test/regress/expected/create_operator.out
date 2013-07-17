@@ -7,6 +7,20 @@ CREATE OPERATOR ## (
    procedure = path_inter,
    commutator = ##
 );
+CREATE OPERATOR ## (
+   leftarg = path,
+   rightarg = path,
+   procedure = path_inter,
+   commutator = ##
+);
+ERROR:  operator ## already exists
+CREATE OPERATOR IF NOT EXISTS ## (
+   leftarg = path,
+   rightarg = path,
+   procedure = path_inter,
+   commutator = ##
+);
+NOTICE:  operator ## already exists, skipping
 CREATE OPERATOR <% (
    leftarg = point,
    rightarg = widget,

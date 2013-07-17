@@ -18,12 +18,12 @@
 
  <refsynopsisdiv>
 <synopsis>
-CREATE COLLATION <replaceable>name</replaceable> (
+CREATE COLLATION [ IF NOT EXISTS ] <replaceable>name</replaceable> (
     [ LOCALE = <replaceable>locale</replaceable>, ]
     [ LC_COLLATE = <replaceable>lc_collate</replaceable>, ]
     [ LC_CTYPE = <replaceable>lc_ctype</replaceable> ]
 )
-CREATE COLLATION <replaceable>name</replaceable> FROM <replaceable>existing_collation</replaceable>
+CREATE COLLATION [ IF NOT EXISTS ] <replaceable>name</replaceable> FROM <replaceable>existing_collation</replaceable>
 </synopsis>
  </refsynopsisdiv>
 
@@ -47,6 +47,16 @@ CREATE COLLATION <replaceable>name</replaceable> FROM <replaceable>existing_coll
   <title>Parameters</title>
 
    <variablelist>
+   <varlistentry>
+    <term><literal>IF NOT EXISTS</literal></term>
+    <listitem>
+     <para>
+      Do nothing (except issuing a notice) if an collation with the same
+      name already exists.
+     </para>
+    </listitem>
+   </varlistentry>
+
     <varlistentry>
      <term><replaceable>name</replaceable></term>
 

@@ -1,5 +1,9 @@
 -- Tests for range data types.
 create type textrange as range (subtype=text, collation="C");
+create type textrange as range (subtype=text, collation="C");
+ERROR:  type "textrange" already exists
+create type if not exists textrange as range (subtype=text, collation="C");
+NOTICE:  type "textrange" already exists, skipping
 --
 -- test input parser
 --
