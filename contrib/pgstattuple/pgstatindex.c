@@ -41,10 +41,12 @@
 
 extern Datum pgstatindex(PG_FUNCTION_ARGS);
 extern Datum pg_relpages(PG_FUNCTION_ARGS);
+extern Datum pg_relpages_regclass(PG_FUNCTION_ARGS);
 extern Datum pgstatginindex(PG_FUNCTION_ARGS);
 
 PG_FUNCTION_INFO_V1(pgstatindex);
 PG_FUNCTION_INFO_V1(pg_relpages);
+PG_FUNCTION_INFO_V1(pg_relpages_regclass);
 PG_FUNCTION_INFO_V1(pgstatginindex);
 
 #define IS_INDEX(r) ((r)->rd_rel->relkind == RELKIND_INDEX)
@@ -301,6 +303,29 @@ pg_relpages(PG_FUNCTION_ARGS)
 
 	relrv = makeRangeVarFromNameList(textToQualifiedNameList(relname));
 	rel = relation_openrv(relrv, AccessShareLock);
+
+	/* note: this will work OK on non-local temp tables */
+
+	relpages = RelationGetNumberOfBlocks(rel);
+
+	relation_close(rel, AccessShareLock);
+
+	PG_RETURN_INT64(relpages);
+}
+
+Datum
+pg_relpages_regclass(PG_FUNCTION_ARGS)
+{
+	Oid			relid = PG_GETARG_OID(0);
+	int64		relpages;
+	Relation	rel;
+
+	if (!superuser())
+		ereport(ERROR,
+				(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+				 (errmsg("must be superuser to use pgstattuple functions"))));
+
+	rel = relation_open(relid, AccessShareLock);
 
 	/* note: this will work OK on non-local temp tables */
 
