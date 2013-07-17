@@ -1533,6 +1533,25 @@ XidInMVCCSnapshot(TransactionId xid, Snapshot snapshot)
 		return true;
 
 	/*
+	 * If we've seen this xid last time then we use our cached knowledge
+	 * to allow a fast path out.
+	 *
+	 * When XidInMVCCSnapshot is called repeatedly in a transaction it
+	 * is usually because we're viewing the results of large transactions.
+	 * Typically there will be just one big concurrent transaction and so
+	 * it's very fast to just remember that and be done. Lots of short
+	 * transactions don't cause problems because their xids quickly go
+	 * above the snapshot's xmax and get ignored before we get here.
+	 *
+	 * XXX If there were more big concurrent transactions then it would make
+	 * sense to remember a list of xids in an LRU scheme. For long lists it
+	 * would make better sense to sort the snapshot xids. Both of those
+	 * ideas have much more complex code and diminishing returns.
+	 */
+	if (TransactionIdEquals(xid, snapshot->xid_in_snapshot))
+		return true;
+
+	/*
 	 * Snapshot information is stored slightly differently in snapshots taken
 	 * during recovery.
 	 */
@@ -1553,7 +1572,10 @@ XidInMVCCSnapshot(TransactionId xid, Snapshot snapshot)
 			for (j = 0; j < snapshot->subxcnt; j++)
 			{
 				if (TransactionIdEquals(xid, snapshot->subxip[j]))
+				{
+					snapshot->xid_in_snapshot = xid;
 					return true;
+				}
 			}
 
 			/* not there, fall through to search xip[] */
@@ -1575,7 +1597,10 @@ XidInMVCCSnapshot(TransactionId xid, Snapshot snapshot)
 		for (i = 0; i < snapshot->xcnt; i++)
 		{
 			if (TransactionIdEquals(xid, snapshot->xip[i]))
+			{
+				snapshot->xid_in_snapshot = xid;
 				return true;
+			}
 		}
 	}
 	else
@@ -1611,7 +1636,10 @@ XidInMVCCSnapshot(TransactionId xid, Snapshot snapshot)
 		for (j = 0; j < snapshot->subxcnt; j++)
 		{
 			if (TransactionIdEquals(xid, snapshot->subxip[j]))
+			{
+				snapshot->xid_in_snapshot = xid;
 				return true;
+			}
 		}
 	}
 
