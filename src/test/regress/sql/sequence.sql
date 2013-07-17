@@ -182,3 +182,203 @@ SELECT * FROM information_schema.sequences WHERE sequence_name IN
 
 DROP USER seq_user;
 DROP SEQUENCE seq;
+
+-- Test SEQUENCE tied to a field
+CREATE TABLE tbl_seq1 (f1 bigint, f2 bigint);
+CREATE SEQUENCE seq4 OWNED BY tbl_seq1.f1;
+ALTER TABLE tbl_seq1 DROP COLUMN f1;
+DROP TABLE tbl_seq1;
+
+-- Should fail since seq5 shouldn't exist
+DROP SEQUENCE seq5;
+
+-- Should fail, unlogged sequences are currently not supported
+CREATE TABLE tbl_seq2 (f1 bigint, f2 bigint);
+CREATE UNLOGGED SEQUENCE seq6 OWNED BY tbl_seq2.f1;
+DROP TABLE tbl_seq2;
+
+-- non-OWNER should not be allowed to access SEQUENCE
+CREATE SEQUENCE seq7;
+SELECT nextval('seq7');
+CREATE ROLE regress_role_seq1;
+SET ROLE regress_role_seq1;
+SELECT nextval('seq7');
+SELECT currval('seq7');
+SELECT setval('seq7', 10);
+ALTER SEQUENCE seq7 OWNED BY NONE;
+SELECT * FROM seq7;
+RESET ROLE;
+DROP ROLE regress_role_seq1;
+DROP SEQUENCE seq7;
+
+-- non-OWNER when allowed to create SEQUENCE on table, should by OWNED by tbl owner
+CREATE USER regress_role_seq2;
+SET ROLE regress_role_seq2;
+CREATE TABLE tbl_seq2 (f1 bigint);
+RESET ROLE;
+ALTER TABLE tbl_seq2 ADD COLUMN f2 bigserial;
+SET ROLE regress_role_seq2;
+DROP TABLE tbl_seq2;
+RESET ROLE;
+DROP ROLE regress_role_seq2;
+
+-- Should fail, Currval not yet defined in session
+CREATE SEQUENCE seq8;
+SELECT currval('seq8');
+DROP SEQUENCE seq8;
+
+-- Setval should work with valid values
+CREATE SEQUENCE seq9;
+SELECT setval('seq9', 10);
+SELECT setval('seq9', 20, true);
+SELECT setval('seq9', 30, false);
+DROP SEQUENCE seq9;
+
+-- Should fail, setval beyond limits
+CREATE SEQUENCE seq10 MINVALUE 20 MAXVALUE 30;
+SELECT setval('seq10', 31);
+SELECT setval('seq10', 19);
+DROP SEQUENCE seq10;
+
+-- Should fail, trying a SEQUENCE function on a valid but non-SEQUENCE object
+CREATE TABLE tbl_seq3 (f1 bigint);
+SELECT nextval('tbl_seq3');
+DROP TABLE tbl_seq3;
+
+-- Should fail, crosscheck min/max
+CREATE SEQUENCE seq11 MINVALUE 40 MAXVALUE 30;
+CREATE SEQUENCE seq11 MINVALUE 20 MAXVALUE 20;
+CREATE SEQUENCE seq11 MINVALUE 40 MAXVALUE 20 INCREMENT BY -1;
+
+-- Should fail, crosscheck START with min/max
+CREATE SEQUENCE seq12 START 29 MINVALUE 30 MAXVALUE 40;
+CREATE SEQUENCE seq12 START -41 MINVALUE -40 MAXVALUE -30 INCREMENT BY -1;
+CREATE SEQUENCE seq12 START 41 MINVALUE 30 MAXVALUE 40;
+CREATE SEQUENCE seq12 START -29 MINVALUE -40 MAXVALUE -30 INCREMENT BY -1;
+
+-- Should work, ensure valid START works with valid min/max
+CREATE SEQUENCE seq13 START 35 MINVALUE 30 MAXVALUE 40;
+DROP SEQUENCE seq13;
+CREATE SEQUENCE seq13 START -35 MINVALUE -40 MAXVALUE -30 INCREMENT BY -1;
+DROP SEQUENCE seq13;
+
+-- Should fail, crosscheck RESTART with min/max
+CREATE SEQUENCE seq14 RESTART 29 MINVALUE 30 MAXVALUE 40;
+CREATE SEQUENCE seq14 RESTART -41 MINVALUE -40 MAXVALUE -30 INCREMENT BY -1;
+CREATE SEQUENCE seq14 RESTART 41 MINVALUE 30 MAXVALUE 40;
+CREATE SEQUENCE seq14 RESTART -29 MINVALUE -40 MAXVALUE -30 INCREMENT BY -1;
+
+-- Should work, ensure valid RESTART works with valid min/max
+CREATE SEQUENCE seq15 RESTART 35 MINVALUE 30 MAXVALUE 40;
+DROP SEQUENCE seq15;
+CREATE SEQUENCE seq15 RESTART -35 MINVALUE -40 MAXVALUE -30 INCREMENT BY -1;
+DROP SEQUENCE seq15;
+
+-- Should fail, Invalid OWNED BY option
+CREATE TABLE tbl_seq4 (f1 bigint);
+CREATE SEQUENCE seq16 OWNED BY asdf;
+CREATE SEQUENCE seq16 OWNED BY tbl_seq4;
+CREATE SEQUENCE seq16 OWNED BY tbl_seq4.asdf;
+CREATE SEQUENCE seq16;
+CREATE SEQUENCE seq17 OWNED BY seq16.asdf;
+DROP SEQUENCE seq16;
+DROP TABLE tbl_seq4;
+
+-- Should fail, ensure table / sequence have same owner
+CREATE TABLE tbl_seq5 (f1 bigint);
+CREATE USER regress_role_seq3;
+SET ROLE regress_role_seq3;
+CREATE SEQUENCE seq18;
+ALTER SEQUENCE seq18 OWNED BY tbl_seq5.f1;
+DROP SEQUENCE seq18;
+RESET ROLE;
+DROP ROLE regress_role_seq3;
+DROP TABLE tbl_seq5;
+
+-- Should fail, ensure table / sequence have same schema
+CREATE TABLE tbl_seq6 (f1 bigint);
+CREATE SCHEMA schema_seq1;
+CREATE SEQUENCE schema_seq1.seq5;
+ALTER SEQUENCE schema_seq1.seq5 OWNED BY tbl_seq6.f1;
+DROP SEQUENCE schema_seq1.seq5;
+DROP SCHEMA schema_seq1;
+DROP TABLE tbl_seq6;
+
+-- Should fail, INCREMENT BY cannot be 0
+CREATE SEQUENCE seq19 INCREMENT BY 0;
+
+-- Check MAXVALUE in ALTER SEQUENCE
+CREATE SEQUENCE seq20 MINVALUE 1 MAXVALUE 2;
+ALTER SEQUENCE seq20 MINVALUE 0;
+SELECT nextval('seq20');
+SELECT nextval('seq20');
+SELECT nextval('seq20');
+ALTER SEQUENCE seq20 MAXVALUE 3;
+SELECT nextval('seq20');
+DROP SEQUENCE seq20;
+
+-- Check MINVALUE in ALTER SEQUENCE
+CREATE SEQUENCE seq21 MINVALUE 1 MAXVALUE 2 INCREMENT -1;
+SELECT nextval('seq21');
+SELECT nextval('seq21');
+SELECT nextval('seq21');
+ALTER SEQUENCE seq21 MINVALUE 0;
+SELECT nextval('seq21');
+DROP SEQUENCE seq21;
+
+-- Should fail, Should not allow conflicting / Redundant options
+CREATE SEQUENCE seq22;
+ALTER SEQUENCE seq22 MAXVALUE 100 NO MAXVALUE;
+ALTER SEQUENCE seq22 MINVALUE 100 NO MINVALUE;
+ALTER SEQUENCE seq22 INCREMENT BY 1 INCREMENT BY -1;
+ALTER SEQUENCE seq22 START 1 START 2;
+ALTER SEQUENCE seq22 RESTART 1 RESTART 2;
+ALTER SEQUENCE seq22 CACHE 1 CACHE 2;
+ALTER SEQUENCE seq22 CYCLE NO CYCLE;
+ALTER SEQUENCE seq22 OWNED BY NONE OWNED BY regression;
+ALTER SEQUENCE seq22 asdf;
+DROP SEQUENCE seq22;
+
+-- Check NO MINVALUE starts with 1
+CREATE SEQUENCE seq23 NO MINVALUE;
+ALTER SEQUENCE seq23 MINVALUE 1;
+SELECT nextval('seq23');
+DROP SEQUENCE seq23;
+
+-- Should work. Check that OWNED BY works as expected
+CREATE TABLE tbl_seq7 (f1 bigint);
+CREATE SEQUENCE seq24 OWNED BY tbl_seq7.f2;
+CREATE SEQUENCE seq24 OWNED BY tbl_seq7.f1;
+ALTER SEQUENCE seq24 OWNED BY NONE;
+DROP TABLE tbl_seq7;
+DROP SEQUENCE seq24;
+
+-- Should fail, Invalid CACHE value
+CREATE SEQUENCE seq25 CACHE 0;
+
+-- Ensure correct MAXVALUE for descending sequence. Also check valid CACHE value
+CREATE SEQUENCE seq27 INCREMENT -1 MAXVALUE -2 CACHE 2;
+SELECT nextval('seq27');
+SELECT nextval('seq27');
+DROP SEQUENCE seq27;
+
+-- Should stop incr when INCREMENT 1, CACHE > 1, MAXVALUE < 0, near MAXVALUE
+CREATE SEQUENCE seq28 INCREMENT 1 CACHE 3 MINVALUE -2 MAXVALUE -1;
+SELECT nextval('seq28');
+SELECT nextval('seq28');
+SELECT nextval('seq28');
+DROP SEQUENCE seq28;
+
+-- Should stop decr when INCREMENT -1, CACHE > 1, MINVALUE > 0, near MINVALUE
+CREATE SEQUENCE seq29 INCREMENT -1 CACHE 3 MINVALUE 1 MAXVALUE 2;
+SELECT nextval('seq29');
+SELECT nextval('seq29');
+SELECT nextval('seq29');
+DROP SEQUENCE seq29;
+
+-- Should cycle when CYCLE is SET
+CREATE SEQUENCE seq30 CYCLE INCREMENT -1 MINVALUE 1 MAXVALUE 2;
+SELECT nextval('seq30');
+SELECT nextval('seq30');
+SELECT nextval('seq30');
+DROP SEQUENCE seq30;
