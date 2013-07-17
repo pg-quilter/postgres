@@ -1520,6 +1520,14 @@ ldap://<replaceable>host</replaceable>[:<replaceable>port</replaceable>]/<replac
         </para>
        </listitem>
       </varlistentry>
+      <varlistentry>
+       <term><literal>ldapreferrals</literal></term>
+       <listitem>
+        <para>
+        Specifies if referrals are automatically chased. Set to 1 to enable chasing, 0 to disable chasing. The default behaviour is specifed by the LDAP client library.
+        </para>
+       </listitem>
+      </varlistentry>
     </variablelist>
    </para>
 

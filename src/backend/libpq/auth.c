@@ -2061,6 +2061,30 @@ InitializeLDAPConnection(Port *port, LDAP **ldap)
 		return STATUS_ERROR;
 	}
 
+	if (port->hba->ldapreferrals == TRI_YES)
+	{
+	
+		if ((r = ldap_set_option(*ldap, LDAP_OPT_REFERRALS, LDAP_OPT_ON )) != LDAP_SUCCESS)
+		{
+			ldap_unbind(*ldap);
+			ereport(LOG,
+					(errmsg("Could not set LDAP referrals: %s", ldap_err2string(r))));
+			return STATUS_ERROR;
+		}
+	}
+
+	if (port->hba->ldapreferrals == TRI_NO)
+	{
+	
+		if ((r = ldap_set_option(*ldap, LDAP_OPT_REFERRALS, LDAP_OPT_OFF )) != LDAP_SUCCESS)
+		{
+			ldap_unbind(*ldap);
+			ereport(LOG,
+					(errmsg("Could not set LDAP referrals: %s", ldap_err2string(r))));
+			return STATUS_ERROR;
+		}
+	}
+
 	if (port->hba->ldaptls)
 	{
 #ifndef WIN32
