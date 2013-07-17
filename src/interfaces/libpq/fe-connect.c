@@ -1452,7 +1452,7 @@ static int
 connectDBComplete(PGconn *conn)
 {
 	PostgresPollingStatusType flag = PGRES_POLLING_WRITING;
-	time_t		finish_time = ((time_t) -1);
+	struct timeval		finish_time;
 
 	if (conn == NULL || conn->status == CONNECTION_BAD)
 		return 0;
@@ -1462,17 +1462,15 @@ connectDBComplete(PGconn *conn)
 	 */
 	if (conn->connect_timeout != NULL)
 	{
-		int			timeout = atoi(conn->connect_timeout);
+		int			timeout_ms = (int) (atof(conn->connect_timeout) * 1000);
 
-		if (timeout > 0)
+		if (timeout_ms > 0)
 		{
-			/*
-			 * Rounding could cause connection to fail; need at least 2 secs
-			 */
-			if (timeout < 2)
-				timeout = 2;
-			/* calculate the finish time based on start + timeout */
-			finish_time = time(NULL) + timeout;
+			gettimeofday(&finish_time, NULL);
+			finish_time.tv_sec  += timeout_ms / 1000;
+			finish_time.tv_usec += (timeout_ms % 1000) * 1000;
+			finish_time.tv_sec  += finish_time.tv_usec / 1000000;
+			finish_time.tv_usec  = finish_time.tv_usec % 1000000;
 		}
 	}
 
@@ -1494,7 +1492,7 @@ connectDBComplete(PGconn *conn)
 				return 1;		/* success! */
 
 			case PGRES_POLLING_READING:
-				if (pqWaitTimed(1, 0, conn, finish_time))
+				if (pqWaitTimed(1, 0, conn, &finish_time))
 				{
 					conn->status = CONNECTION_BAD;
 					return 0;
@@ -1502,7 +1500,7 @@ connectDBComplete(PGconn *conn)
 				break;
 
 			case PGRES_POLLING_WRITING:
-				if (pqWaitTimed(0, 1, conn, finish_time))
+				if (pqWaitTimed(0, 1, conn, &finish_time))
 				{
 					conn->status = CONNECTION_BAD;
 					return 0;

@@ -62,8 +62,9 @@
 static int	pqPutMsgBytes(const void *buf, size_t len, PGconn *conn);
 static int	pqSendSome(PGconn *conn, int len);
 static int pqSocketCheck(PGconn *conn, int forRead, int forWrite,
-			  time_t end_time);
-static int	pqSocketPoll(int sock, int forRead, int forWrite, time_t end_time);
+			  struct timeval *end_time);
+static int	pqSocketPoll(int sock, int forRead, int forWrite,
+			  struct timeval *end_time);
 
 /*
  * PQlibVersion: return the libpq version number
@@ -942,7 +943,7 @@ pqFlush(PGconn *conn)
 int
 pqWait(int forRead, int forWrite, PGconn *conn)
 {
-	return pqWaitTimed(forRead, forWrite, conn, (time_t) -1);
+	return pqWaitTimed(forRead, forWrite, conn, NULL);
 }
 
 /*
@@ -952,10 +953,10 @@ pqWait(int forRead, int forWrite, PGconn *conn)
  * the response for a kernel exception because we don't want the caller
  * to try to read/write in that case.
  *
- * finish_time = ((time_t) -1) disables the wait limit.
+ * finish_time = NULL disables the wait limit.
  */
 int
-pqWaitTimed(int forRead, int forWrite, PGconn *conn, time_t finish_time)
+pqWaitTimed(int forRead, int forWrite, PGconn *conn, struct timeval *finish_time)
 {
 	int			result;
 
@@ -981,7 +982,7 @@ pqWaitTimed(int forRead, int forWrite, PGconn *conn, time_t finish_time)
 int
 pqReadReady(PGconn *conn)
 {
-	return pqSocketCheck(conn, 1, 0, (time_t) 0);
+	return pqSocketCheck(conn, 1, 0, NULL);
 }
 
 /*
@@ -991,7 +992,7 @@ pqReadReady(PGconn *conn)
 int
 pqWriteReady(PGconn *conn)
 {
-	return pqSocketCheck(conn, 0, 1, (time_t) 0);
+	return pqSocketCheck(conn, 0, 1, NULL);
 }
 
 /*
@@ -1003,7 +1004,7 @@ pqWriteReady(PGconn *conn)
  * for read data directly.
  */
 static int
-pqSocketCheck(PGconn *conn, int forRead, int forWrite, time_t end_time)
+pqSocketCheck(PGconn *conn, int forRead, int forWrite, struct timeval *end_time)
 {
 	int			result;
 
@@ -1053,7 +1054,7 @@ pqSocketCheck(PGconn *conn, int forRead, int forWrite, time_t end_time)
  * if end_time is 0 (or indeed, any time before now).
  */
 static int
-pqSocketPoll(int sock, int forRead, int forWrite, time_t end_time)
+pqSocketPoll(int sock, int forRead, int forWrite, struct timeval *end_time)
 {
 	/* We use poll(2) if available, otherwise select(2) */
 #ifdef HAVE_POLL
@@ -1073,15 +1074,15 @@ pqSocketPoll(int sock, int forRead, int forWrite, time_t end_time)
 		input_fd.events |= POLLOUT;
 
 	/* Compute appropriate timeout interval */
-	if (end_time == ((time_t) -1))
+	if (end_time == NULL)
 		timeout_ms = -1;
 	else
 	{
-		time_t		now = time(NULL);
+		struct timeval now;
+		gettimeofday(&now, NULL);
 
-		if (end_time > now)
-			timeout_ms = (end_time - now) * 1000;
-		else
+		timeout_ms = (end_time->tv_sec - now.tv_sec) * 1000 + (end_time->tv_usec - now.tv_usec) / 1000;
+		if (timeout_ms <= 0)
 			timeout_ms = 0;
 	}
 
