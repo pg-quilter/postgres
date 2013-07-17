@@ -59,3 +59,70 @@ UPDATE update_test SET c = repeat('x', 10000) WHERE c = 'car';
 SELECT a, b, char_length(c) FROM update_test;
 
 DROP TABLE update_test;
+
+
+--
+-- Test to update continuos and non continuos columns
+--
+
+DROP TABLE IF EXISTS update_test;
+CREATE TABLE update_test (
+		bser bigserial,
+		bln boolean,
+		ename VARCHAR(25),
+		perf_f float(8),
+		grade CHAR,
+		dept CHAR(5) NOT NULL,
+		dob DATE,
+		idnum INT,
+		addr VARCHAR(30) NOT NULL,
+		destn CHAR(6),
+		Gend CHAR,
+		samba BIGINT,
+		hgt float,
+		ctime TIME
+);
+
+INSERT INTO update_test VALUES (
+		nextval('update_test_bser_seq'::regclass),
+		TRUE,
+		'Test',
+		7.169,
+		'B',
+		'CSD',
+		'2000-01-01',
+		520,
+		'road2,
+		streeeeet2,
+		city2',
+		'dcy2',
+		'M',
+		12000,
+		50.4,
+		'00:00:00.0'
+);
+
+SELECT * from update_test;
+
+-- update first column
+UPDATE update_test SET bser = bser - 1 + 1;
+
+-- update middle column
+UPDATE update_test SET perf_f = 8.9;
+
+-- update last column
+UPDATE update_test SET ctime = '00:00:00.1';
+
+-- update 3 continuos columns
+UPDATE update_test SET destn = 'dcy2', samba = 0 WHERE Gend = 'M' and dept = 'CSD';
+
+-- update two non continuos columns
+UPDATE update_test SET destn = 'moved', samba = 0;
+UPDATE update_test SET bln = FALSE, hgt = 10.1;
+
+-- update causing some column alignment difference
+UPDATE update_test SET ename = 'Tes';
+UPDATE update_test SET dept = 'Test';
+
+SELECT * from update_test;
+DROP TABLE update_test;

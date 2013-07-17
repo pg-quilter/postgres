@@ -60,7 +60,11 @@
 #include "access/sysattr.h"
 #include "access/tuptoaster.h"
 #include "executor/tuptable.h"
+#include "utils/datum.h"
+#include "utils/pg_lzcompress.h"
 
+/* guc variable for EWT compression ratio*/
+int			wal_update_compression_ratio = 25;
 
 /* Does att's datatype allow packing into the 1-byte-header varlena format? */
 #define ATT_IS_PACKABLE(att) \
@@ -615,6 +619,49 @@ heap_copytuple_with_tuple(HeapTuple src, HeapTuple dest)
 	dest->t_tableOid = src->t_tableOid;
 	dest->t_data = (HeapTupleHeader) palloc(src->t_len);
 	memcpy((char *) dest->t_data, (char *) src->t_data, src->t_len);
+}
+
+/* ----------------
+ * heap_delta_encode
+ *
+ *		Calculate the delta between two tuples, using pglz. The result is
+ * stored in *encdata. *encdata must point to a PGLZ_header buffer, with at
+ * least PGLZ_MAX_OUTPUT(newtup->t_len) bytes.
+ * ----------------
+ */
+bool
+heap_delta_encode(TupleDesc tupleDesc, HeapTuple oldtup, HeapTuple newtup,
+				  char *encdata, uint32 *enclen)
+{
+	PGLZ_Strategy strategy;
+
+	strategy = *PGLZ_strategy_default;
+	strategy.min_comp_rate = wal_update_compression_ratio;
+
+	return pglz_delta_encode(
+		(char *) newtup->t_data + offsetof(HeapTupleHeaderData, t_bits),
+		newtup->t_len - offsetof(HeapTupleHeaderData, t_bits),
+		(char *) oldtup->t_data + offsetof(HeapTupleHeaderData, t_bits),
+		oldtup->t_len - offsetof(HeapTupleHeaderData, t_bits),
+		encdata, enclen, &strategy
+		);
+}
+
+/* ----------------
+ * heap_delta_decode
+ *
+ *		Decode a tuple using delta-encoded WAL tuple and old tuple version.
+ * ----------------
+ */
+void
+heap_delta_decode(char *encdata, uint32 enclen, HeapTuple oldtup, HeapTuple newtup)
+{
+	return pglz_delta_decode(encdata, enclen,
+							 (char *) newtup->t_data + offsetof(HeapTupleHeaderData, t_bits),
+							 MaxHeapTupleSize - offsetof(HeapTupleHeaderData, t_bits),
+							 &newtup->t_len,
+							 (char *) oldtup->t_data + offsetof(HeapTupleHeaderData, t_bits),
+							 oldtup->t_len - offsetof(HeapTupleHeaderData, t_bits));
 }
 
 /*

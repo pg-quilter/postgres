@@ -70,10 +70,12 @@
 #include "utils/snapmgr.h"
 #include "utils/syscache.h"
 #include "utils/tqual.h"
+#include "utils/pg_lzcompress.h"
 
 
 /* GUC variable */
 bool		synchronize_seqscans = true;
+extern int     wal_update_compression_ratio;
 
 
 static HeapScanDesc heap_beginscan_internal(Relation relation,
@@ -5844,6 +5846,12 @@ log_heap_update(Relation reln, Buffer oldbuf,
 	XLogRecPtr	recptr;
 	XLogRecData rdata[4];
 	Page		page = BufferGetPage(newbuf);
+	char	   *newtupdata;
+	int			newtuplen;
+	bool		compressed = false;
+
+	/* Structure which holds EWT */
+	char		buf[MaxHeapTupleSize];
 
 	/* Caller should not call me on a non-WAL-logged relation */
 	Assert(RelationNeedsWAL(reln));
@@ -5853,15 +5861,47 @@ log_heap_update(Relation reln, Buffer oldbuf,
 	else
 		info = XLOG_HEAP_UPDATE;
 
+	newtupdata = ((char *) newtup->t_data) + offsetof(HeapTupleHeaderData, t_bits);
+	newtuplen = newtup->t_len - offsetof(HeapTupleHeaderData, t_bits);
+
+	/*
+	 * EWT can be generated for all new tuple versions created by Update
+	 * operation. Currently we do it when both the old and new tuple versions
+	 * are on same page, because during recovery if the page containing old
+	 * tuple is corrupt, it should not cascade that corruption to other pages.
+	 * Under the general assumption that for long runs most updates tend to
+	 * create new tuple version on same page, there should not be significant
+	 * impact on WAL reduction or performance.
+	 *
+	 * We should not generate EWT when we need to backup the whole bolck in
+	 * WAL as in that case there is no saving by reduced WAL size.
+	 */
+	if (wal_update_compression_ratio != 0 && (oldbuf == newbuf) && !XLogCheckBufferNeedsBackup(newbuf))
+	{
+		uint32 enclen;
+		/* Delta-encode the new tuple using the old tuple */
+		if (heap_delta_encode(reln->rd_att, oldtup, newtup, buf, &enclen))
+		{
+			compressed = true;
+			newtupdata = buf;
+			newtuplen = enclen;
+		}
+	}
+
+	xlrec.flags = 0;
 	xlrec.target.node = reln->rd_node;
 	xlrec.target.tid = oldtup->t_self;
 	xlrec.old_xmax = HeapTupleHeaderGetRawXmax(oldtup->t_data);
 	xlrec.old_infobits_set = compute_infobits(oldtup->t_data->t_infomask,
 											  oldtup->t_data->t_infomask2);
 	xlrec.new_xmax = HeapTupleHeaderGetRawXmax(newtup->t_data);
-	xlrec.all_visible_cleared = all_visible_cleared;
+	if (all_visible_cleared)
+		xlrec.flags |= XL_HEAP_UPDATE_ALL_VISIBLE_CLEARED;
 	xlrec.newtid = newtup->t_self;
-	xlrec.new_all_visible_cleared = new_all_visible_cleared;
+	if (new_all_visible_cleared)
+		xlrec.flags |= XL_HEAP_UPDATE_NEW_ALL_VISIBLE_CLEARED;
+	if (compressed)
+		xlrec.flags |= XL_HEAP_UPDATE_DELTA_ENCODED;
 
 	rdata[0].data = (char *) &xlrec;
 	rdata[0].len = SizeOfHeapUpdate;
@@ -5888,9 +5928,12 @@ log_heap_update(Relation reln, Buffer oldbuf,
 	rdata[2].buffer_std = true;
 	rdata[2].next = &(rdata[3]);
 
-	/* PG73FORMAT: write bitmap [+ padding] [+ oid] + data */
-	rdata[3].data = (char *) newtup->t_data + offsetof(HeapTupleHeaderData, t_bits);
-	rdata[3].len = newtup->t_len - offsetof(HeapTupleHeaderData, t_bits);
+	/*
+	 * PG73FORMAT: write bitmap [+ padding] [+ oid] + data follows .........
+	 * OR PG93FORMAT [If encoded]: LZ header + Encoded data follows
+	 */
+	rdata[3].data = newtupdata;
+	rdata[3].len = newtuplen;
 	rdata[3].buffer = newbuf;
 	rdata[3].buffer_std = true;
 	rdata[3].next = NULL;
@@ -6700,7 +6743,10 @@ heap_xlog_update(XLogRecPtr lsn, XLogRecord *record, bool hot_update)
 	Page		page;
 	OffsetNumber offnum;
 	ItemId		lp = NULL;
+	HeapTupleData newtup;
+	HeapTupleData oldtup;
 	HeapTupleHeader htup;
+	HeapTupleHeader oldtupdata = NULL;
 	struct
 	{
 		HeapTupleHeaderData hdr;
@@ -6715,7 +6761,7 @@ heap_xlog_update(XLogRecPtr lsn, XLogRecord *record, bool hot_update)
 	 * The visibility map may need to be fixed even if the heap page is
 	 * already up-to-date.
 	 */
-	if (xlrec->all_visible_cleared)
+	if (xlrec->flags & XL_HEAP_UPDATE_ALL_VISIBLE_CLEARED)
 	{
 		Relation	reln = CreateFakeRelcacheEntry(xlrec->target.node);
 		BlockNumber block = ItemPointerGetBlockNumber(&xlrec->target.tid);
@@ -6775,7 +6821,7 @@ heap_xlog_update(XLogRecPtr lsn, XLogRecord *record, bool hot_update)
 	if (PageGetMaxOffsetNumber(page) < offnum || !ItemIdIsNormal(lp))
 		elog(PANIC, "heap_update_redo: invalid lp");
 
-	htup = (HeapTupleHeader) PageGetItem(page, lp);
+	oldtupdata = htup = (HeapTupleHeader) PageGetItem(page, lp);
 
 	htup->t_infomask &= ~(HEAP_XMAX_BITS | HEAP_MOVED);
 	htup->t_infomask2 &= ~HEAP_KEYS_UPDATED;
@@ -6793,7 +6839,7 @@ heap_xlog_update(XLogRecPtr lsn, XLogRecord *record, bool hot_update)
 	/* Mark the page as a candidate for pruning */
 	PageSetPrunable(page, record->xl_xid);
 
-	if (xlrec->all_visible_cleared)
+	if (xlrec->flags & XL_HEAP_UPDATE_ALL_VISIBLE_CLEARED)
 		PageClearAllVisible(page);
 
 	/*
@@ -6817,7 +6863,7 @@ newt:;
 	 * The visibility map may need to be fixed even if the heap page is
 	 * already up-to-date.
 	 */
-	if (xlrec->new_all_visible_cleared)
+	if (xlrec->flags & XL_HEAP_UPDATE_NEW_ALL_VISIBLE_CLEARED)
 	{
 		Relation	reln = CreateFakeRelcacheEntry(xlrec->target.node);
 		BlockNumber block = ItemPointerGetBlockNumber(&xlrec->newtid);
@@ -6884,10 +6930,31 @@ newsame:;
 		   SizeOfHeapHeader);
 	htup = &tbuf.hdr;
 	MemSet((char *) htup, 0, sizeof(HeapTupleHeaderData));
-	/* PG73FORMAT: get bitmap [+ padding] [+ oid] + data */
-	memcpy((char *) htup + offsetof(HeapTupleHeaderData, t_bits),
-		   (char *) xlrec + hsize,
-		   newlen);
+
+	/*
+	 * If the record is EWT then decode it.
+	 */
+	if (xlrec->flags & XL_HEAP_UPDATE_DELTA_ENCODED)
+	{
+		/*
+		 * PG93FORMAT: Header + Control byte + history reference (2 - 3)bytes
+		 * + New data (1 byte length + variable data)+ ...
+		 */
+		oldtup.t_data = oldtupdata;
+		oldtup.t_len = ItemIdGetLength(lp);
+		newtup.t_data = htup;
+
+		heap_delta_decode((char *) xlrec + hsize, newlen, &oldtup, &newtup);
+		newlen = newtup.t_len;
+	}
+	else
+	{
+		/* PG73FORMAT: get bitmap [+ padding] [+ oid] + data */
+		memcpy((char *) htup + offsetof(HeapTupleHeaderData, t_bits),
+			   (char *) xlrec + hsize,
+			   newlen);
+	}
+
 	newlen += offsetof(HeapTupleHeaderData, t_bits);
 	htup->t_infomask2 = xlhdr.t_infomask2;
 	htup->t_infomask = xlhdr.t_infomask;
@@ -6903,7 +6970,7 @@ newsame:;
 	if (offnum == InvalidOffsetNumber)
 		elog(PANIC, "heap_update_redo: failed to add tuple");
 
-	if (xlrec->new_all_visible_cleared)
+	if (xlrec->flags & XL_HEAP_UPDATE_NEW_ALL_VISIBLE_CLEARED)
 		PageClearAllVisible(page);
 
 	freespace = PageGetHeapFreeSpace(page);		/* needed to update FSM below */

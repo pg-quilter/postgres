@@ -107,6 +107,12 @@ extern const PGLZ_Strategy *const PGLZ_strategy_always;
  */
 extern bool pglz_compress(const char *source, int32 slen, PGLZ_Header *dest,
 			  const PGLZ_Strategy *strategy);
+extern bool pglz_delta_encode(const char *source, int32 slen,
+				  const char *history, int32 hlen,
+				  char *dest, uint32 *finallen, const PGLZ_Strategy *strategy);
 extern void pglz_decompress(const PGLZ_Header *source, char *dest);
+extern void pglz_delta_decode(const char *source, uint32 srclen,
+							  char *dest, uint32 destlen, uint32 *finallen,
+							  const char *history, uint32 histlen);
 
 #endif   /* _PG_LZCOMPRESS_H_ */
