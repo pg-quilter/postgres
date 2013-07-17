@@ -21,13 +21,13 @@ PostgreSQL documentation
 
  <refsynopsisdiv>
 <synopsis>
-CREATE TYPE <replaceable class="parameter">name</replaceable> AS
+CREATE TYPE [ IF NOT EXISTS ] <replaceable class="parameter">name</replaceable> AS
     ( [ <replaceable class="PARAMETER">attribute_name</replaceable> <replaceable class="PARAMETER">data_type</replaceable> [ COLLATE <replaceable>collation</replaceable> ] [, ... ] ] )
 
-CREATE TYPE <replaceable class="parameter">name</replaceable> AS ENUM
+CREATE TYPE [ IF NOT EXISTS ] <replaceable class="parameter">name</replaceable> AS ENUM
     ( [ '<replaceable class="parameter">label</replaceable>' [, ... ] ] )
 
-CREATE TYPE <replaceable class="parameter">name</replaceable> AS RANGE (
+CREATE TYPE [ IF NOT EXISTS ] <replaceable class="parameter">name</replaceable> AS RANGE (
     SUBTYPE = <replaceable class="parameter">subtype</replaceable>
     [ , SUBTYPE_OPCLASS = <replaceable class="parameter">subtype_operator_class</replaceable> ]
     [ , COLLATION = <replaceable class="parameter">collation</replaceable> ]
@@ -35,7 +35,7 @@ CREATE TYPE <replaceable class="parameter">name</replaceable> AS RANGE (
     [ , SUBTYPE_DIFF = <replaceable class="parameter">subtype_diff_function</replaceable> ]
 )
 
-CREATE TYPE <replaceable class="parameter">name</replaceable> (
+CREATE TYPE [ IF NOT EXISTS ] <replaceable class="parameter">name</replaceable> (
     INPUT = <replaceable class="parameter">input_function</replaceable>,
     OUTPUT = <replaceable class="parameter">output_function</replaceable>
     [ , RECEIVE = <replaceable class="parameter">receive_function</replaceable> ]
@@ -56,7 +56,7 @@ CREATE TYPE <replaceable class="parameter">name</replaceable> (
     [ , COLLATABLE = <replaceable class="parameter">collatable</replaceable> ]
 )
 
-CREATE TYPE <replaceable class="parameter">name</replaceable>
+CREATE TYPE [ IF NOT EXISTS ] <replaceable class="parameter">name</replaceable>
 </synopsis>
  </refsynopsisdiv>
 
@@ -483,6 +483,16 @@ CREATE TYPE <replaceable class="parameter">name</replaceable>
   <title>Parameters</title>
 
   <variablelist>
+   <varlistentry>
+    <term><literal>IF NOT EXISTS</literal></term>
+    <listitem>
+     <para>
+      Do nothing (except issuing a notice) if a type with the same name
+      already exists.
+     </para>
+    </listitem>
+   </varlistentry>
+
    <varlistentry>
     <term><replaceable class="parameter">name</replaceable></term>
     <listitem>

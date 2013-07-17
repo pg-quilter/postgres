@@ -4613,6 +4613,18 @@ DefineStmt:
 					n->defnames = $3;
 					n->args = $4;
 					n->definition = $5;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE AGGREGATE IF_P NOT EXISTS func_name aggr_args definition
+				{
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_AGGREGATE;
+					n->oldstyle = false;
+					n->defnames = $6;
+					n->args = $7;
+					n->definition = $8;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE AGGREGATE func_name old_aggr_definition
@@ -4624,6 +4636,19 @@ DefineStmt:
 					n->defnames = $3;
 					n->args = NIL;
 					n->definition = $4;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE AGGREGATE IF_P NOT EXISTS func_name old_aggr_definition
+				{
+					/* old-style (pre-8.2) syntax for CREATE AGGREGATE */
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_AGGREGATE;
+					n->oldstyle = true;
+					n->defnames = $6;
+					n->args = NIL;
+					n->definition = $7;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE OPERATOR any_operator definition
@@ -4634,6 +4659,18 @@ DefineStmt:
 					n->defnames = $3;
 					n->args = NIL;
 					n->definition = $4;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE OPERATOR IF_P NOT EXISTS any_operator definition
+				{
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_OPERATOR;
+					n->oldstyle = false;
+					n->defnames = $6;
+					n->args = NIL;
+					n->definition = $7;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE TYPE_P any_name definition
@@ -4644,6 +4681,18 @@ DefineStmt:
 					n->defnames = $3;
 					n->args = NIL;
 					n->definition = $4;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE TYPE_P IF_P NOT EXISTS any_name definition
+				{
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_TYPE;
+					n->oldstyle = false;
+					n->defnames = $6;
+					n->args = NIL;
+					n->definition = $7;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE TYPE_P any_name
@@ -4655,6 +4704,19 @@ DefineStmt:
 					n->defnames = $3;
 					n->args = NIL;
 					n->definition = NIL;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE TYPE_P IF_P NOT EXISTS any_name
+				{
+					/* Shell type (identified by lack of definition) */
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_TYPE;
+					n->oldstyle = false;
+					n->defnames = $6;
+					n->args = NIL;
+					n->definition = NIL;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE TYPE_P any_name AS '(' OptTableFuncElementList ')'
@@ -4664,6 +4726,17 @@ DefineStmt:
 					/* can't use qualified_name, sigh */
 					n->typevar = makeRangeVarFromAnyName($3, @3, yyscanner);
 					n->coldeflist = $6;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE TYPE_P IF_P NOT EXISTS any_name AS '(' OptTableFuncElementList ')'
+				{
+					CompositeTypeStmt *n = makeNode(CompositeTypeStmt);
+
+					/* can't use qualified_name, sigh */
+					n->typevar = makeRangeVarFromAnyName($6, @6, yyscanner);
+					n->coldeflist = $9;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE TYPE_P any_name AS ENUM_P '(' opt_enum_val_list ')'
@@ -4671,6 +4744,15 @@ DefineStmt:
 					CreateEnumStmt *n = makeNode(CreateEnumStmt);
 					n->typeName = $3;
 					n->vals = $7;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE TYPE_P IF_P NOT EXISTS any_name AS ENUM_P '(' opt_enum_val_list ')'
+				{
+					CreateEnumStmt *n = makeNode(CreateEnumStmt);
+					n->typeName = $6;
+					n->vals = $10;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE TYPE_P any_name AS RANGE definition
@@ -4678,6 +4760,15 @@ DefineStmt:
 					CreateRangeStmt *n = makeNode(CreateRangeStmt);
 					n->typeName = $3;
 					n->params	= $6;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE TYPE_P IF_P NOT EXISTS any_name AS RANGE definition
+				{
+					CreateRangeStmt *n = makeNode(CreateRangeStmt);
+					n->typeName = $6;
+					n->params	= $9;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE TEXT_P SEARCH PARSER any_name definition
@@ -4687,6 +4778,17 @@ DefineStmt:
 					n->args = NIL;
 					n->defnames = $5;
 					n->definition = $6;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE TEXT_P SEARCH PARSER IF_P NOT EXISTS any_name definition
+				{
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_TSPARSER;
+					n->args = NIL;
+					n->defnames = $8;
+					n->definition = $9;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE TEXT_P SEARCH DICTIONARY any_name definition
@@ -4696,6 +4798,17 @@ DefineStmt:
 					n->args = NIL;
 					n->defnames = $5;
 					n->definition = $6;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE TEXT_P SEARCH DICTIONARY IF_P NOT EXISTS any_name definition
+				{
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_TSDICTIONARY;
+					n->args = NIL;
+					n->defnames = $8;
+					n->definition = $9;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE TEXT_P SEARCH TEMPLATE any_name definition
@@ -4705,6 +4818,17 @@ DefineStmt:
 					n->args = NIL;
 					n->defnames = $5;
 					n->definition = $6;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE TEXT_P SEARCH TEMPLATE IF_P NOT EXISTS any_name definition
+				{
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_TSTEMPLATE;
+					n->args = NIL;
+					n->defnames = $8;
+					n->definition = $9;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE TEXT_P SEARCH CONFIGURATION any_name definition
@@ -4714,6 +4838,17 @@ DefineStmt:
 					n->args = NIL;
 					n->defnames = $5;
 					n->definition = $6;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE TEXT_P SEARCH CONFIGURATION IF_P NOT EXISTS any_name definition
+				{
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_TSCONFIGURATION;
+					n->args = NIL;
+					n->defnames = $8;
+					n->definition = $9;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE COLLATION any_name definition
@@ -4723,6 +4858,17 @@ DefineStmt:
 					n->args = NIL;
 					n->defnames = $3;
 					n->definition = $4;
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE COLLATION IF_P NOT EXISTS any_name definition
+				{
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_COLLATION;
+					n->args = NIL;
+					n->defnames = $6;
+					n->definition = $7;
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 			| CREATE COLLATION any_name FROM any_name
@@ -4732,6 +4878,17 @@ DefineStmt:
 					n->args = NIL;
 					n->defnames = $3;
 					n->definition = list_make1(makeDefElem("from", (Node *) $5));
+					n->if_not_exists = false;
+					$$ = (Node *)n;
+				}
+			| CREATE COLLATION IF_P NOT EXISTS any_name FROM any_name
+				{
+					DefineStmt *n = makeNode(DefineStmt);
+					n->kind = OBJECT_COLLATION;
+					n->args = NIL;
+					n->defnames = $6;
+					n->definition = list_make1(makeDefElem("from", (Node *) $8));
+					n->if_not_exists = true;
 					$$ = (Node *)n;
 				}
 		;
@@ -4833,8 +4990,8 @@ AlterEnumStmt:
 			}
 		 ;
 
-opt_if_not_exists: IF_P NOT EXISTS              { $$ = true; }
-         | /* empty */                          { $$ = false; }
+opt_if_not_exists: IF_P NOT EXISTS              { $$ = TRUE; }
+         | /* empty */                          { $$ = FALSE; }
          ;
 
 
@@ -6702,37 +6859,40 @@ dostmt_opt_item:
  *
  *****************************************************************************/
 
-CreateCastStmt: CREATE CAST '(' Typename AS Typename ')'
+CreateCastStmt: CREATE CAST opt_if_not_exists '(' Typename AS Typename ')'
 					WITH FUNCTION function_with_argtypes cast_context
 				{
 					CreateCastStmt *n = makeNode(CreateCastStmt);
-					n->sourcetype = $4;
-					n->targettype = $6;
-					n->func = $10;
-					n->context = (CoercionContext) $11;
+					n->sourcetype = $5;
+					n->targettype = $7;
+					n->func = $11;
+					n->context = (CoercionContext) $12;
 					n->inout = false;
+					n->if_not_exists = $3;
 					$$ = (Node *)n;
 				}
-			| CREATE CAST '(' Typename AS Typename ')'
+			| CREATE CAST opt_if_not_exists '(' Typename AS Typename ')'
 					WITHOUT FUNCTION cast_context
 				{
 					CreateCastStmt *n = makeNode(CreateCastStmt);
-					n->sourcetype = $4;
-					n->targettype = $6;
+					n->sourcetype = $5;
+					n->targettype = $7;
 					n->func = NULL;
-					n->context = (CoercionContext) $10;
+					n->context = (CoercionContext) $11;
 					n->inout = false;
+					n->if_not_exists = $3;
 					$$ = (Node *)n;
 				}
-			| CREATE CAST '(' Typename AS Typename ')'
+			| CREATE CAST opt_if_not_exists '(' Typename AS Typename ')'
 					WITH INOUT cast_context
 				{
 					CreateCastStmt *n = makeNode(CreateCastStmt);
-					n->sourcetype = $4;
-					n->targettype = $6;
+					n->sourcetype = $5;
+					n->targettype = $7;
 					n->func = NULL;
-					n->context = (CoercionContext) $10;
+					n->context = (CoercionContext) $11;
 					n->inout = true;
+					n->if_not_exists = $3;
 					$$ = (Node *)n;
 				}
 		;

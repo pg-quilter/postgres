@@ -16,6 +16,24 @@ CREATE TYPE widget (
    alignment = double
 );
 
+CREATE TYPE widget (
+   internallength = 24,
+   input = widget_in,
+   output = widget_out,
+   typmod_in = numerictypmodin,
+   typmod_out = numerictypmodout,
+   alignment = double
+);
+
+CREATE TYPE IF NOT EXISTS widget (
+   internallength = 24,
+   input = widget_in,
+   output = widget_out,
+   typmod_in = numerictypmodin,
+   typmod_out = numerictypmodout,
+   alignment = double
+);
+
 CREATE TYPE city_budget (
    internallength = 16,
    input = int44in,
@@ -28,6 +46,7 @@ CREATE TYPE city_budget (
 -- Test creation and destruction of shell types
 CREATE TYPE shell;
 CREATE TYPE shell;   -- fail, type already present
+CREATE TYPE IF NOT EXISTS shell;   -- do not fail, just skip
 DROP TYPE shell;
 DROP TYPE shell;     -- fail, type not exist
 
@@ -84,6 +103,10 @@ SELECT * FROM default_test;
 -- Test stand-alone composite type
 
 CREATE TYPE default_test_row AS (f1 text_w_default, f2 int42);
+
+CREATE TYPE default_test_row AS (f1 text_w_default, f2 int42);
+
+CREATE TYPE IF NOT EXISTS default_test_row AS (f1 text_w_default, f2 int42);
 
 CREATE FUNCTION get_default_test() RETURNS SETOF default_test_row AS '
   SELECT * FROM default_test;

@@ -88,7 +88,8 @@ ProcedureCreate(const char *procedureName,
 				List *parameterDefaults,
 				Datum proconfig,
 				float4 procost,
-				float4 prorows)
+				float4 prorows,
+				bool ifNotExists)
 {
 	Oid			retval;
 	int			parameterCount;
@@ -388,10 +389,23 @@ ProcedureCreate(const char *procedureName,
 		bool		isnull;
 
 		if (!replace)
-			ereport(ERROR,
-					(errcode(ERRCODE_DUPLICATE_FUNCTION),
-			errmsg("function \"%s\" already exists with same argument types",
-				   procedureName)));
+		{
+			if (!ifNotExists)
+				ereport(ERROR,
+						(errcode(ERRCODE_DUPLICATE_FUNCTION),
+				errmsg("function \"%s\" already exists with same argument types",
+					   procedureName)));
+			else
+			{
+				ereport(NOTICE,
+						(errcode(ERRCODE_DUPLICATE_FUNCTION),
+						 errmsg("function \"%s\" already exists with same argument types, skipping",
+								procedureName)));
+				ReleaseSysCache(oldtup);
+				heap_close(rel, RowExclusiveLock);
+				return InvalidOid;
+			}
+		}
 		if (!pg_proc_ownercheck(HeapTupleGetOid(oldtup), proowner))
 			aclcheck_error(ACLCHECK_NOT_OWNER, ACL_KIND_PROC,
 						   procedureName);

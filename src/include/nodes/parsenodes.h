@@ -1877,6 +1877,7 @@ typedef struct DefineStmt
 	List	   *defnames;		/* qualified name (list of Value strings) */
 	List	   *args;			/* a list of TypeName (if needed) */
 	List	   *definition;		/* a list of DefElem */
+	bool		if_not_exists;	/* just do nothing if {aggregate|operator|type} already exists? */
 } DefineStmt;
 
 /* ----------------------
@@ -2291,6 +2292,7 @@ typedef struct CompositeTypeStmt
 	NodeTag		type;
 	RangeVar   *typevar;		/* the composite type to be created */
 	List	   *coldeflist;		/* list of ColumnDef nodes */
+	bool		if_not_exists;	/* just do nothing if type already exists? */
 } CompositeTypeStmt;
 
 /* ----------------------
@@ -2302,6 +2304,7 @@ typedef struct CreateEnumStmt
 	NodeTag		type;
 	List	   *typeName;		/* qualified name (list of Value strings) */
 	List	   *vals;			/* enum values (list of Value strings) */
+	bool		if_not_exists;	/* just do nothing if type already exists? */
 } CreateEnumStmt;
 
 /* ----------------------
@@ -2313,6 +2316,7 @@ typedef struct CreateRangeStmt
 	NodeTag		type;
 	List	   *typeName;		/* qualified name (list of Value strings) */
 	List	   *params;			/* range parameters (list of DefElem) */
+	bool		if_not_exists;	/* just do nothing if type already exists? */
 } CreateRangeStmt;
 
 /* ----------------------
@@ -2574,6 +2578,7 @@ typedef struct CreateCastStmt
 	FuncWithArgs *func;
 	CoercionContext context;
 	bool		inout;
+	bool		if_not_exists;	/* just do nothing if cast already exists? */
 } CreateCastStmt;
 
 /* ----------------------

@@ -51,7 +51,8 @@ extern Oid TypeCreate(Oid newTypeOid,
 		   int32 typeMod,
 		   int32 typNDims,
 		   bool typeNotNull,
-		   Oid typeCollation);
+		   Oid typeCollation,
+		   bool ifNotExists);
 
 extern void GenerateTypeDependencies(Oid typeNamespace,
 						 Oid typeObjectId,

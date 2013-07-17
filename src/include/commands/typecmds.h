@@ -21,13 +21,13 @@
 
 #define DEFAULT_TYPDELIM		','
 
-extern Oid	DefineType(List *names, List *parameters);
+extern Oid DefineType(List *names, List *parameters, bool ifNotExists);
 extern void RemoveTypeById(Oid typeOid);
 extern Oid	DefineDomain(CreateDomainStmt *stmt);
 extern Oid	DefineEnum(CreateEnumStmt *stmt);
 extern Oid	DefineRange(CreateRangeStmt *stmt);
 extern Oid	AlterEnum(AlterEnumStmt *stmt, bool isTopLevel);
-extern Oid	DefineCompositeType(RangeVar *typevar, List *coldeflist);
+extern Oid	DefineCompositeType(RangeVar *typevar, List *coldeflist, bool ifNotExists);
 extern Oid	AssignTypeArrayOid(void);
 
 extern Oid	AlterDomainDefault(List *names, Node *defaultRaw);

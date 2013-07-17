@@ -18,15 +18,15 @@
 
  <refsynopsisdiv>
 <synopsis>
-CREATE CAST (<replaceable>source_type</replaceable> AS <replaceable>target_type</replaceable>)
+CREATE CAST [ IF NOT EXISTS ] (<replaceable>source_type</replaceable> AS <replaceable>target_type</replaceable>)
     WITH FUNCTION <replaceable>function_name</replaceable> (<replaceable>argument_type</replaceable> [, ...])
     [ AS ASSIGNMENT | AS IMPLICIT ]
 
-CREATE CAST (<replaceable>source_type</replaceable> AS <replaceable>target_type</replaceable>)
+CREATE CAST [ IF NOT EXISTS ] (<replaceable>source_type</replaceable> AS <replaceable>target_type</replaceable>)
     WITHOUT FUNCTION
     [ AS ASSIGNMENT | AS IMPLICIT ]
 
-CREATE CAST (<replaceable>source_type</replaceable> AS <replaceable>target_type</replaceable>)
+CREATE CAST [ IF NOT EXISTS ] (<replaceable>source_type</replaceable> AS <replaceable>target_type</replaceable>)
     WITH INOUT
     [ AS ASSIGNMENT | AS IMPLICIT ]
 </synopsis>
@@ -171,6 +171,16 @@ SELECT CAST ( 2 AS numeric ) + 4.0;
   <title>Parameters</title>
 
    <variablelist>
+     <varlistentry>
+      <term><literal>IF NOT EXISTS</literal></term>
+      <listitem>
+       <para>
+        Do nothing (except issuing a notice) if a cast with the same
+        from and to type already exists.
+       </para>
+      </listitem>
+     </varlistentry>
+
     <varlistentry>
      <term><replaceable>source_type</replaceable></term>
 

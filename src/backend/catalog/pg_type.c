@@ -215,7 +215,8 @@ TypeCreate(Oid newTypeOid,
 		   int32 typeMod,
 		   int32 typNDims,		/* Array dimensions for baseType */
 		   bool typeNotNull,
-		   Oid typeCollation)
+		   Oid typeCollation,
+		   bool ifNotExists)
 {
 	Relation	pg_type_desc;
 	Oid			typeObjectId;
@@ -397,9 +398,21 @@ TypeCreate(Oid newTypeOid,
 		 * shell type, however.
 		 */
 		if (((Form_pg_type) GETSTRUCT(tup))->typisdefined)
+		{
+			/* skip if already exists */
+			if (ifNotExists)
+			{
+				ereport(NOTICE,
+						(errcode(ERRCODE_DUPLICATE_OBJECT),
+						 errmsg("type \"%s\" already exists, skipping", typeName)));
+				heap_close(pg_type_desc, RowExclusiveLock);
+				return InvalidOid;
+			}
+
 			ereport(ERROR,
 					(errcode(ERRCODE_DUPLICATE_OBJECT),
 					 errmsg("type \"%s\" already exists", typeName)));
+		}
 
 		/*
 		 * shell type must have been created by same owner

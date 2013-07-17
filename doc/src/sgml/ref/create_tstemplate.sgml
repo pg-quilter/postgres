@@ -21,7 +21,7 @@ PostgreSQL documentation
 
  <refsynopsisdiv>
 <synopsis>
-CREATE TEXT SEARCH TEMPLATE <replaceable class="parameter">name</replaceable> (
+CREATE TEXT SEARCH TEMPLATE [ IF NOT EXISTS ] <replaceable class="parameter">name</replaceable> (
     [ INIT = <replaceable class="parameter">init_function</replaceable> , ]
     LEXIZE = <replaceable class="parameter">lexize_function</replaceable>
 )
@@ -64,6 +64,16 @@ CREATE TEXT SEARCH TEMPLATE <replaceable class="parameter">name</replaceable> (
   <title>Parameters</title>
 
   <variablelist>
+   <varlistentry>
+    <term><literal>IF NOT EXISTS</literal></term>
+    <listitem>
+     <para>
+      Do nothing (except issuing a notice) if a text search template with
+      the same name already exists.
+     </para>
+    </listitem>
+   </varlistentry>
+
    <varlistentry>
     <term><replaceable class="parameter">name</replaceable></term>
     <listitem>

@@ -2,6 +2,10 @@
 -- Enum tests
 --
 CREATE TYPE rainbow AS ENUM ('red', 'orange', 'yellow', 'green', 'blue', 'purple');
+CREATE TYPE rainbow AS ENUM ('red', 'orange', 'yellow', 'green', 'blue', 'purple');
+ERROR:  type "rainbow" already exists
+CREATE TYPE IF NOT EXISTS rainbow AS ENUM ('red', 'orange', 'yellow', 'green', 'blue', 'purple');
+NOTICE:  type "rainbow" already exists, skipping
 --
 -- Did it create the right number of rows?
 --

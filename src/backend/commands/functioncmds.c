@@ -983,7 +983,8 @@ CreateFunction(CreateFunctionStmt *stmt, const char *queryString)
 						   parameterDefaults,
 						   PointerGetDatum(proconfig),
 						   procost,
-						   prorows);
+						   prorows,
+						   false);
 }
 
 
@@ -1498,8 +1499,6 @@ CreateCast(CreateCastStmt *stmt)
 			break;
 	}
 
-	relation = heap_open(CastRelationId, RowExclusiveLock);
-
 	/*
 	 * Check for duplicate.  This is just to give a friendly error message,
 	 * the unique index would catch it anyway (so no need to sweat about race
@@ -1509,11 +1508,26 @@ CreateCast(CreateCastStmt *stmt)
 							ObjectIdGetDatum(sourcetypeid),
 							ObjectIdGetDatum(targettypeid));
 	if (HeapTupleIsValid(tuple))
-		ereport(ERROR,
-				(errcode(ERRCODE_DUPLICATE_OBJECT),
-				 errmsg("cast from type %s to type %s already exists",
-						format_type_be(sourcetypeid),
-						format_type_be(targettypeid))));
+	{
+		if (!stmt->if_not_exists)
+			ereport(ERROR,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("cast from type %s to type %s already exists",
+							format_type_be(sourcetypeid),
+							format_type_be(targettypeid))));
+		else
+		{
+			ereport(NOTICE,
+					(errcode(ERRCODE_DUPLICATE_OBJECT),
+					 errmsg("cast from type %s to type %s already exists, skipping",
+							format_type_be(sourcetypeid),
+							format_type_be(targettypeid))));
+			ReleaseSysCache(tuple);
+			return InvalidOid;
+		}
+	}
+
+	relation = heap_open(CastRelationId, RowExclusiveLock);
 
 	/* ready to go */
 	values[Anum_pg_cast_castsource - 1] = ObjectIdGetDatum(sourcetypeid);

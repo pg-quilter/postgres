@@ -246,6 +246,7 @@ extern Oid AggregateCreate(const char *aggName,
 				List *aggfinalfnName,
 				List *aggsortopName,
 				Oid aggTransType,
-				const char *agginitval);
+				const char *agginitval,
+				bool aggIfNotExists);
 
 #endif   /* PG_AGGREGATE_H */

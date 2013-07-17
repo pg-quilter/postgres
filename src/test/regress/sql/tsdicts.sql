@@ -6,6 +6,16 @@ CREATE TEXT SEARCH DICTIONARY ispell (
                         DictFile=ispell_sample,
                         AffFile=ispell_sample
 );
+CREATE TEXT SEARCH DICTIONARY ispell (
+                        Template=ispell,
+                        DictFile=ispell_sample,
+                        AffFile=ispell_sample
+);
+CREATE TEXT SEARCH DICTIONARY IF NOT EXISTS ispell (
+                        Template=ispell,
+                        DictFile=ispell_sample,
+                        AffFile=ispell_sample
+);
 
 SELECT ts_lexize('ispell', 'skies');
 SELECT ts_lexize('ispell', 'bookings');
@@ -71,6 +81,12 @@ SELECT ts_lexize('thesaurus', 'one');
 
 -- Test ispell dictionary in configuration
 CREATE TEXT SEARCH CONFIGURATION ispell_tst (
+						COPY=english
+);
+CREATE TEXT SEARCH CONFIGURATION ispell_tst (
+						COPY=english
+);
+CREATE TEXT SEARCH CONFIGURATION IF NOT EXISTS ispell_tst (
 						COPY=english
 );
 

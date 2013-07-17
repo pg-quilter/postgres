@@ -60,7 +60,7 @@
  * 'parameters' is a list of DefElem
  */
 Oid
-DefineOperator(List *names, List *parameters)
+DefineOperator(List *names, List *parameters, bool ifNotExists)
 {
 	char	   *oprName;
 	Oid			oprNamespace;
@@ -306,7 +306,8 @@ DefineOperator(List *names, List *parameters)
 					   restrictionOid,	/* optional restrict. sel. procedure */
 					   joinOid, /* optional join sel. procedure name */
 					   canMerge,	/* operator merges */
-					   canHash);	/* operator hashes */
+					   canHash,		/* operator hashes */
+					   ifNotExists);	/* if not exists flag */
 }
 
 /*

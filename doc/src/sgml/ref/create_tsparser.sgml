@@ -21,7 +21,7 @@ PostgreSQL documentation
 
  <refsynopsisdiv>
 <synopsis>
-CREATE TEXT SEARCH PARSER <replaceable class="parameter">name</replaceable> (
+CREATE TEXT SEARCH PARSER [ IF NOT EXISTS ] <replaceable class="parameter">name</replaceable> (
     START = <replaceable class="parameter">start_function</replaceable> ,
     GETTOKEN = <replaceable class="parameter">gettoken_function</replaceable> ,
     END = <replaceable class="parameter">end_function</replaceable> ,
@@ -63,6 +63,16 @@ CREATE TEXT SEARCH PARSER <replaceable class="parameter">name</replaceable> (
   <title>Parameters</title>
 
   <variablelist>
+   <varlistentry>
+    <term><literal>IF NOT EXISTS</literal></term>
+    <listitem>
+     <para>
+      Do nothing (except issuing a notice) if a text search parser
+      with the same name already exists.
+     </para>
+    </listitem>
+   </varlistentry>
+
    <varlistentry>
     <term><replaceable class="parameter">name</replaceable></term>
     <listitem>

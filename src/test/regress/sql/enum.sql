@@ -4,6 +4,10 @@
 
 CREATE TYPE rainbow AS ENUM ('red', 'orange', 'yellow', 'green', 'blue', 'purple');
 
+CREATE TYPE rainbow AS ENUM ('red', 'orange', 'yellow', 'green', 'blue', 'purple');
+
+CREATE TYPE IF NOT EXISTS rainbow AS ENUM ('red', 'orange', 'yellow', 'green', 'blue', 'purple');
+
 --
 -- Did it create the right number of rows?
 --

@@ -55,12 +55,12 @@ extern void ExecuteDoStmt(DoStmt *stmt);
 extern Oid	get_cast_oid(Oid sourcetypeid, Oid targettypeid, bool missing_ok);
 
 /* commands/operatorcmds.c */
-extern Oid	DefineOperator(List *names, List *parameters);
+extern Oid DefineOperator(List *names, List *parameters, bool ifNotExists);
 extern void RemoveOperatorById(Oid operOid);
 
 /* commands/aggregatecmds.c */
 extern Oid DefineAggregate(List *name, List *args, bool oldstyle,
-				List *parameters);
+				List *parameters, bool ifNotExists);
 
 /* commands/opclasscmds.c */
 extern Oid	DefineOpClass(CreateOpClassStmt *stmt);
@@ -79,17 +79,17 @@ extern Oid	get_opclass_oid(Oid amID, List *opclassname, bool missing_ok);
 extern Oid	get_opfamily_oid(Oid amID, List *opfamilyname, bool missing_ok);
 
 /* commands/tsearchcmds.c */
-extern Oid	DefineTSParser(List *names, List *parameters);
+extern Oid DefineTSParser(List *names, List *parameters, bool ifNotExists);
 extern void RemoveTSParserById(Oid prsId);
 
-extern Oid	DefineTSDictionary(List *names, List *parameters);
+extern Oid DefineTSDictionary(List *names, List *parameters, bool ifNotExists);
 extern void RemoveTSDictionaryById(Oid dictId);
 extern Oid	AlterTSDictionary(AlterTSDictionaryStmt *stmt);
 
-extern Oid	DefineTSTemplate(List *names, List *parameters);
+extern Oid DefineTSTemplate(List *names, List *parameters, bool ifNotExists);
 extern void RemoveTSTemplateById(Oid tmplId);
 
-extern Oid	DefineTSConfiguration(List *names, List *parameters);
+extern Oid DefineTSConfiguration(List *names, List *parameters, bool ifNotExists);
 extern void RemoveTSConfigurationById(Oid cfgId);
 extern Oid	AlterTSConfiguration(AlterTSConfigurationStmt *stmt);
 

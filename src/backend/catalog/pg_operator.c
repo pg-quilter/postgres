@@ -336,7 +336,8 @@ OperatorCreate(const char *operatorName,
 			   Oid restrictionId,
 			   Oid joinId,
 			   bool canMerge,
-			   bool canHash)
+			   bool canHash,
+			   bool ifNotExists)
 {
 	Relation	pg_operator_desc;
 	HeapTuple	tup;
@@ -415,6 +416,16 @@ OperatorCreate(const char *operatorName,
 								   leftTypeId,
 								   rightTypeId,
 								   &operatorAlreadyDefined);
+
+	/* skip if already exists */
+	if (operatorAlreadyDefined && ifNotExists)
+	{
+		ereport(NOTICE,
+				(errcode(ERRCODE_DUPLICATE_FUNCTION),
+				 errmsg("operator %s already exists, skipping",
+						operatorName)));
+		return InvalidOid;
+	}
 
 	if (operatorAlreadyDefined)
 		ereport(ERROR,
