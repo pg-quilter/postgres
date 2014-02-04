@@ -1,0 +1,6 @@
+language: c
+compiler:
+  - gcc
+  - clang
+
+script: test ! -f .pg-quilter-patch-application-failed.sentinel && ./configure && make check
